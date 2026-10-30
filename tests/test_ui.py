@@ -1,0 +1,192 @@
+import os
+import tempfile
+import unittest
+from unittest.mock import patch
+from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtWidgets import QApplication
+
+from playcore.detection import Scanner
+from playcore.ui import MainWindow
+
+
+class GuiTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.home = Path(self.temp.name)
+        self.scanner = Scanner(self.home, self.home, {}, which=lambda _: None)
+        self.window = MainWindow(self.scanner, auto_scan=False)
+        self.addCleanup(self.window.close)
+
+    def test_six_sections_and_inventory(self):
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertEqual(self.window.navigation.count(), 6)
+        self.assertEqual(self.window.tables["Temas"].rowCount(), 15)
+        self.assertEqual(self.window.tables["Decky"].rowCount(), 5)
+        for index in range(6):
+            self.window.navigation.setCurrentRow(index)
+            self.assertEqual(self.window.pages.currentIndex(), index)
+
+    def test_profile_is_manual_and_does_not_write_files(self):
+        profile = self.home / "homebrew/themes/Soft Play.profile"
+        profile.mkdir(parents=True)
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertIsNone(self.window.profile_combo.currentData())
+        self.window.profile_combo.setCurrentIndex(1)
+        self.assertIn("manualmente", self.window.profile_note.text())
+        self.assertEqual(list(profile.iterdir()), [])
+        self.assertFalse((self.home / "homebrew/settings").exists())
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertEqual(self.window.profile_combo.currentData(), "Soft Play.profile")
+
+    def test_background_scan_and_refresh(self):
+        loop = QEventLoop()
+        self.window.start_scan()
+        self.assertFalse(self.window.refresh_button.isEnabled())
+        self.window.worker.finished.connect(loop.quit)
+        QTimer.singleShot(5000, loop.quit)
+        loop.exec()
+        self.assertFalse(self.window.worker.isRunning())
+        self.app.processEvents()
+        self.assertIsNotNone(self.window.snapshot)
+        self.assertTrue(self.window.refresh_button.isEnabled())
+
+    def test_worker_error_is_visible(self):
+        class BrokenScanner:
+            def scan(self):
+                raise OSError("lectura fallida")
+        self.window.scanner = BrokenScanner()
+        loop = QEventLoop()
+        self.window.start_scan()
+        self.window.worker.finished.connect(loop.quit)
+        QTimer.singleShot(5000, loop.quit)
+        loop.exec()
+        self.app.processEvents()
+        self.assertIn("lectura fallida", self.window.diagnostics.toPlainText())
+        self.assertTrue(self.window.refresh_button.isEnabled())
+
+    def test_install_buttons_only_for_missing_items_on_supported_system(self):
+        (self.home / "etc").mkdir()
+        (self.home / "etc/os-release").write_text("ID=steamos")
+        loader = self.home / "homebrew/services/PluginLoader"
+        loader.parent.mkdir(parents=True)
+        loader.touch()
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertTrue(self.window.install_buttons["Decky Launch Options"].isEnabled())
+        plugin = self.home / "homebrew/plugins/Launch Options/plugin.json"
+        plugin.parent.mkdir(parents=True)
+        plugin.write_text('{"name": "Launch Options"}')
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertFalse(self.window.install_buttons["Decky Launch Options"].isEnabled())
+
+    def test_installation_runs_on_click_and_refreshes_without_real_install(self):
+        class FakeInstaller:
+            calls = []
+            def install(self, name, progress):
+                self.calls.append(name)
+                progress("validation simulée")
+                return "Installation simulée terminée"
+        fake = FakeInstaller()
+        self.window.installer = fake
+        (self.home / "etc").mkdir()
+        (self.home / "etc/os-release").write_text("ID=bazzite")
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertEqual(fake.calls, [])
+        loop = QEventLoop()
+        self.window.install_buttons["Heroic"].click()
+        self.window.install_worker.finished.connect(loop.quit)
+        QTimer.singleShot(5000, loop.quit)
+        loop.exec()
+        self.app.processEvents()
+        if self.window.worker is not None:
+            self.window.worker.wait(5000)
+        self.app.processEvents()
+        self.assertEqual(fake.calls, ["Heroic"])
+        self.assertIn("terminée", self.window.install_logs[0].toPlainText())
+        self.assertTrue(self.window.refresh_button.isEnabled())
+        self.assertEqual(self.window.statusBar().currentMessage(), "Instalación de Heroic completada.")
+        self.assertTrue(self.window.install_logs[0].toPlainText().endswith("Instalación de Heroic completada."))
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertEqual(self.window.statusBar().currentMessage(), "Instalación de Heroic completada.")
+
+    def test_message_panels_are_small_and_can_be_opened_and_closed(self):
+        panel = self.window.message_panels[0]
+        self.assertTrue(panel.log.isHidden())
+        self.window.install_message("Progreso de prueba")
+        panel.toggle.click()
+        self.assertFalse(panel.log.isHidden())
+        self.assertEqual(panel.log.height(), 90)
+        self.assertEqual(panel.toggle.text(), "Ocultar mensajes")
+        panel.toggle.click()
+        self.assertTrue(panel.log.isHidden())
+        self.assertIn("Progreso de prueba", panel.log.toPlainText())
+
+    def test_install_error_is_not_reported_as_completed_after_scan(self):
+        class FailedInstaller:
+            def install(self, name, progress):
+                raise RuntimeError("Error de descarga simulado")
+        self.window.installer = FailedInstaller()
+        (self.home / "etc").mkdir()
+        (self.home / "etc/os-release").write_text("ID=steamos")
+        self.window.render_snapshot(self.scanner.scan())
+        loop = QEventLoop()
+        self.window.install_buttons["Heroic"].click()
+        self.window.install_worker.finished.connect(loop.quit)
+        QTimer.singleShot(5000, loop.quit)
+        loop.exec()
+        self.app.processEvents()
+        if self.window.worker:
+            self.window.worker.wait(5000)
+        self.app.processEvents()
+        self.assertEqual(self.window.statusBar().currentMessage(), "No se completó la instalación de Heroic.")
+        self.assertIn("Error de descarga simulado", self.window.install_logs[0].toPlainText())
+
+    def test_password_action_uses_external_process_without_changing_password(self):
+        loop = QEventLoop()
+        # Sustituye Konsole/passwd por un proceso inocuo. No se prueba con secretos.
+        with patch("playcore.ui.password_command", return_value=("/usr/bin/true", [])):
+            self.window.password_button.click()
+        self.window.password_process.finished.connect(loop.quit)
+        QTimer.singleShot(5000, loop.quit)
+        loop.exec()
+        self.app.processEvents()
+        if self.window.worker is not None:
+            self.window.worker.wait(5000)
+        self.app.processEvents()
+        self.assertIn("terminal ha terminado", self.window.password_note.text())
+        self.assertTrue(self.window.password_button.isEnabled())
+        self.assertTrue(self.window.refresh_button.isEnabled())
+
+    def test_theme_dependency_choice_and_decky_prerequisites(self):
+        (self.home / "etc").mkdir()
+        (self.home / "etc/os-release").write_text("ID=steamos")
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertTrue(self.window.install_buttons["Decky Loader"].isEnabled())
+        self.assertFalse(self.window.install_buttons["HLTB"].isEnabled())
+        self.assertFalse(self.window.install_buttons["Machine Ready TV"].isEnabled())
+        loader = self.home / "homebrew/services/PluginLoader"
+        loader.parent.mkdir(parents=True)
+        loader.touch()
+        plugin = self.home / "homebrew/plugins/css/plugin.json"
+        plugin.parent.mkdir(parents=True)
+        plugin.write_text('{"name":"CSS Loader"}')
+        theme = self.home / "homebrew/themes/theme/theme.json"
+        theme.parent.mkdir(parents=True)
+        theme.write_text('{"name":"Animated PSP Waves Background"}')
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertTrue(self.window.install_buttons["HLTB"].isEnabled())
+        self.assertTrue(self.window.install_buttons["Machine Ready TV"].isEnabled())
+        self.assertFalse(self.window.install_buttons["Tema CSS seleccionado"].isEnabled())
+        self.window.css_combo.setCurrentIndex(1)
+        self.assertTrue(self.window.install_buttons["Tema CSS seleccionado"].isEnabled())
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,479 @@
+"""Widgets Qt nativos: se respeta la paleta, tipografía y estilo del escritorio."""
+from PySide6.QtCore import QProcess, QThread, Signal, Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import (
+    QComboBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QListWidget, QListWidgetItem, QMainWindow, QPushButton, QScrollArea,
+    QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QTextBrowser, QToolButton,
+    QVBoxLayout, QWidget,
+)
+
+from .catalog import CSS_DEPENDENCIES, MACHINE_READY_URL, PLUGINS, PROFILE_STEPS
+from .detection import Scanner
+from .installers import Installer, steam_installations
+from .accounts import password_command
+from . import __version__
+
+
+class MessagePanel(QWidget):
+    """Resumen visible y registro pequeño que el usuario puede desplegar."""
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.summary = paragraph("No se ha iniciado ninguna instalación.")
+        layout.addWidget(self.summary)
+        self.toggle = QToolButton()
+        self.toggle.setText("Mostrar mensajes")
+        self.toggle.setCheckable(True)
+        self.toggle.setArrowType(Qt.ArrowType.RightArrow)
+        self.toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        layout.addWidget(self.toggle)
+        self.log = QTextBrowser()
+        self.log.setAccessibleName("Mensajes de instalación")
+        self.log.setFixedHeight(90)
+        self.log.setPlainText("No se ha iniciado ninguna instalación.")
+        self.log.hide()
+        layout.addWidget(self.log)
+        self.toggle.toggled.connect(self.set_expanded)
+
+    def set_expanded(self, expanded):
+        self.log.setVisible(expanded)
+        self.toggle.setText("Ocultar mensajes" if expanded else "Mostrar mensajes")
+        self.toggle.setArrowType(Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow)
+
+
+class InstallWorker(QThread):
+    progress = Signal(str)
+    succeeded = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, installer, name, parent=None, steam_target=None):
+        super().__init__(parent)
+        self.installer, self.name = installer, name
+        self.steam_target = steam_target
+
+    def run(self):
+        try:
+            if self.steam_target is None:
+                result = self.installer.install(self.name, self.progress.emit)
+            else:
+                result = self.installer.install(self.name, self.progress.emit, self.steam_target)
+            self.succeeded.emit(result)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
+class ScanWorker(QThread):
+    ready = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, scanner, parent=None):
+        super().__init__(parent)
+        self.scanner = scanner
+
+    def run(self):
+        try:
+            self.ready.emit(self.scanner.scan())
+        except Exception as exc:
+            self.failed.emit(f"No se pudo completar la detección: {exc}")
+
+
+class InventoryTable(QTableWidget):
+    def __init__(self):
+        super().__init__(0, 3)
+        self.setHorizontalHeaderLabels(["Componente", "Estado local", "Evidencia"])
+        self.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.setWordWrap(False)
+        self.verticalHeader().hide()
+        self.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.setMinimumHeight(150)
+
+    def populate(self, findings):
+        self.setRowCount(len(findings))
+        for row, finding in enumerate(findings):
+            for column, value in enumerate((finding.name, finding.status, finding.evidence or "—")):
+                item = QTableWidgetItem(value)
+                item.setToolTip(value)
+                self.setItem(row, column, item)
+
+
+def paragraph(text):
+    label = QLabel(text)
+    label.setTextFormat(Qt.TextFormat.PlainText)
+    label.setWordWrap(True)
+    label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+    return label
+
+
+class MainWindow(QMainWindow):
+    SECTIONS = (
+        ("Sistema", "computer"), ("Aplicaciones", "applications-other"),
+        ("Proton", "applications-games"), ("Decky", "preferences-plugin"),
+        ("Temas", "preferences-desktop-theme"), ("Mantenimiento", "tools-check-spelling"),
+    )
+
+    def __init__(self, scanner=None, auto_scan=True, installer=None):
+        super().__init__()
+        self.scanner = scanner or Scanner()
+        self.worker = None
+        self.installer = installer or Installer()
+        self.install_worker = None
+        self.install_buttons = {}
+        self.install_logs = []
+        self.message_panels = []
+        self.operation_summary = ""
+        self.password_process = QProcess(self)
+        self.password_process.finished.connect(self.password_finished)
+        self.password_process.errorOccurred.connect(self.password_error)
+        self.snapshot = None
+        self.setWindowTitle("PlayCore")
+        self.setWindowIcon(QIcon.fromTheme("applications-games"))
+        self.resize(1100, 760)
+        central = QWidget()
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(20, 16, 20, 16)
+        header = QHBoxLayout()
+        title = QLabel("PlayCore")
+        font = title.font()
+        font.setPointSize(font.pointSize() + 8)
+        font.setBold(True)
+        title.setFont(font)
+        header.addWidget(title)
+        header.addStretch()
+        header.addWidget(QLabel(f"Versión {__version__} · Instalación bajo demanda"))
+        self.refresh_button = QPushButton(QIcon.fromTheme("view-refresh"), "Actualizar detección")
+        self.refresh_button.clicked.connect(self.start_scan)
+        header.addWidget(self.refresh_button)
+        layout.addLayout(header)
+        layout.addWidget(paragraph("Tu equipo de juego, de un vistazo. Consulta el sistema, las aplicaciones y los complementos locales."))
+        splitter = QSplitter()
+        self.navigation = QListWidget()
+        self.navigation.setAccessibleName("Secciones de PlayCore")
+        self.navigation.setMinimumWidth(155)
+        self.pages = QStackedWidget()
+        self.tables = {}
+        self.system_labels = {}
+        for name, icon in self.SECTIONS:
+            self.navigation.addItem(QListWidgetItem(QIcon.fromTheme(icon), name))
+            page = QWidget()
+            page_layout = QVBoxLayout(page)
+            heading = QLabel(name)
+            heading_font = heading.font()
+            heading_font.setPointSize(heading_font.pointSize() + 4)
+            heading_font.setBold(True)
+            heading.setFont(heading_font)
+            page_layout.addWidget(heading)
+            self.build_section(name, page_layout)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setWidget(page)
+            self.pages.addWidget(scroll)
+        splitter.addWidget(self.navigation)
+        splitter.addWidget(self.pages)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([175, 900])
+        layout.addWidget(splitter, 1)
+        layout.addWidget(paragraph("Las instalaciones comienzan al pulsar Instalar. Los perfiles se aplican manualmente en CSS Loader; no se modifican las opciones de lanzamiento de los juegos."))
+        self.setCentralWidget(central)
+        self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
+        self.navigation.setCurrentRow(0)
+        self.statusBar().showMessage("Listo para detectar")
+        if auto_scan:
+            self.start_scan()
+
+    def build_section(self, name, layout):
+        if name == "Sistema":
+            group = QGroupBox("Información del equipo")
+            form = QFormLayout(group)
+            for key in ("Distribución", "Versión", "Hostname", "Kernel", "Escritorio", "Sesión"):
+                value = paragraph("Pendiente de detección")
+                self.system_labels[key] = value
+                form.addRow(key, value)
+            layout.addWidget(group)
+            self.compatibility = paragraph("Detectando SteamOS o Bazzite…")
+            layout.addWidget(self.compatibility)
+            account = QGroupBox("Contraseña del usuario")
+            account_layout = QVBoxLayout(account)
+            self.account_label = paragraph("Consultando el estado de la cuenta…")
+            account_layout.addWidget(self.account_label)
+            account_layout.addWidget(paragraph("Para autorizar instalaciones de Decky necesitas la contraseña de tu usuario. Puedes establecerla o cambiarla con passwd en Konsole. PlayCore no recibe ni guarda tu contraseña. Los Flatpaks y Proton en tu carpeta de usuario no requieren permisos de administrador."))
+            self.password_button = QPushButton(QIcon.fromTheme("dialog-password"), "Establecer o cambiar contraseña…")
+            self.password_button.clicked.connect(self.change_password)
+            account_layout.addWidget(self.password_button)
+            self.password_note = paragraph("En la terminal, sigue los mensajes de passwd. Al escribir la contraseña no aparecen caracteres. Si te pide la contraseña actual y nunca has definido una, prueba a dejarla vacía pulsando Intro.")
+            account_layout.addWidget(self.password_note)
+            layout.addWidget(account)
+            layout.addStretch()
+        elif name in {"Aplicaciones", "Proton", "Decky"}:
+            descriptions = {
+                "Aplicaciones": "Heroic y ProtonPlus: consulta Flatpak de usuario y sistema, además de ejecutables disponibles en PATH.",
+                "Proton": "Proton-CachyOS y Proton-GE: detecta herramientas instaladas en Steam nativo y Flatpak. La selección para cada juego se realiza en Steam.",
+                "Decky": "Decky Loader y los cuatro plugins solicitados. Se leen los manifiestos locales de ~/homebrew/plugins; no se comprueba si el servicio está ejecutándose.",
+            }
+            layout.addWidget(paragraph(descriptions[name]))
+            table = InventoryTable()
+            self.tables[name] = table
+            layout.addWidget(table, 1)
+            if name == "Aplicaciones":
+                layout.addWidget(paragraph("Instalación Flatpak para tu usuario desde Flathub. Se descargarán la aplicación y sus dependencias."))
+                for app_name in ("Heroic", "ProtonPlus"):
+                    self.add_install_button(layout, app_name)
+                self.add_install_log(layout)
+            elif name == "Decky":
+                layout.addWidget(paragraph("Instala primero Decky Loader y después los plugins. Se descargan las versiones estables oficiales con SHA-256. Cada plugin nuevo pide permisos de administrador y reinicia Decky. No se sobrescriben componentes existentes."))
+                grid = QGridLayout()
+                for index, component in enumerate(("Decky Loader", *PLUGINS)):
+                    button = self.add_install_button(None, component)
+                    grid.addWidget(button, index // 2, index % 2)
+                layout.addLayout(grid)
+                layout.addWidget(paragraph("Instalar Decky Loader ejecuta su instalador oficial: crea el servicio y habilita la depuración remota de Steam; en Bazzite también puede ajustar el contexto SELinux. Configura tu contraseña desde Sistema antes de autorizarlo."))
+                self.add_install_log(layout)
+            elif name == "Proton":
+                layout.addWidget(paragraph("Instala Proton-CachyOS SLR o Proton-GE estable para tu arquitectura. La descarga puede ocupar cientos de MB. Elige el Steam de destino; después reinicia Steam y selecciona la herramienta manualmente."))
+                self.steam_combo = QComboBox()
+                self.steam_combo.setAccessibleName("Instalación de Steam para Proton-CachyOS")
+                self.steam_combo.currentIndexChanged.connect(self.update_install_buttons)
+                layout.addWidget(self.steam_combo)
+                self.add_install_button(layout, "Proton-CachyOS")
+                self.add_install_button(layout, "Proton-GE")
+                self.add_install_log(layout)
+        elif name == "Temas":
+            layout.addWidget(paragraph("Machine Ready TV · Tema base y 14 dependencias CSS. Los manifiestos indican presencia local, no activación ni compatibilidad de versión."))
+            table = InventoryTable()
+            self.tables[name] = table
+            table.setMinimumHeight(240)
+            layout.addWidget(table, 1)
+            self.add_install_button(layout, "Machine Ready TV")
+            self.add_install_button(layout, "Dependencias CSS")
+            layout.addWidget(paragraph("Machine Ready TV instala los temas y perfiles del repositorio y las 14 dependencias. Conserva todas las carpetas existentes. También puedes instalar una dependencia concreta:"))
+            self.css_combo = QComboBox()
+            self.css_combo.addItems(CSS_DEPENDENCIES)
+            self.css_combo.currentIndexChanged.connect(self.update_install_buttons)
+            layout.addWidget(self.css_combo)
+            self.add_install_button(layout, "Tema CSS seleccionado")
+            self.add_install_log(layout)
+            self.profile_combo = QComboBox()
+            self.profile_combo.setAccessibleName("Perfil local para consultar; no se aplica")
+            self.profile_combo.addItem("Sin selección · elige el perfil manualmente en CSS Loader", None)
+            layout.addWidget(self.profile_combo)
+            self.profile_note = paragraph("No se ha elegido ningún perfil. PlayCore no cambia la selección de CSS Loader.")
+            layout.addWidget(self.profile_note)
+            self.profile_combo.currentIndexChanged.connect(self.profile_changed)
+            guide = QGroupBox("Configuración manual en CSS Loader")
+            guide_layout = QVBoxLayout(guide)
+            for index, step in enumerate(PROFILE_STEPS, 1):
+                guide_layout.addWidget(paragraph(f"{index}. {step}"))
+            # La dirección es seleccionable, sin abrir navegadores desde la aplicación.
+            guide_layout.addWidget(paragraph(f"Fuente y descarga manual: {MACHINE_READY_URL}"))
+            layout.addWidget(guide)
+        else:
+            layout.addWidget(paragraph("Diagnóstico de solo lectura. Actualizar detección vuelve a consultar el inventario; no borra cachés, actualiza paquetes ni reinicia servicios."))
+            self.free_space = paragraph("Espacio libre: pendiente")
+            layout.addWidget(self.free_space)
+            self.diagnostics = QTextBrowser()
+            self.diagnostics.setAccessibleName("Avisos de diagnóstico")
+            layout.addWidget(self.diagnostics, 1)
+
+    def add_install_button(self, layout, name):
+        button = QPushButton(QIcon.fromTheme("list-add"), f"Instalar {name}")
+        button.setEnabled(False)
+        button.clicked.connect(lambda checked=False, target=name: self.start_install(target))
+        self.install_buttons[name] = button
+        if layout is not None:
+            layout.addWidget(button)
+        return button
+
+    def add_install_log(self, layout):
+        panel = MessagePanel()
+        self.message_panels.append(panel)
+        self.install_logs.append(panel.log)
+        layout.addWidget(panel)
+
+    def installation_busy(self):
+        return self.install_worker is not None and self.install_worker.isRunning()
+
+    def update_install_buttons(self):
+        statuses = {}
+        if self.snapshot:
+            statuses = {f.name: f.status for f in (*self.snapshot.applications, *self.snapshot.decky,
+                                                  *self.snapshot.themes, *self.snapshot.proton)}
+        scanning = self.worker is not None and self.worker.isRunning()
+        password_busy = self.password_process.state() != QProcess.ProcessState.NotRunning
+        for name, button in self.install_buttons.items():
+            component = self.css_combo.currentText() if name == "Tema CSS seleccionado" else name
+            installed = statuses.get(component) == "Detectado"
+            if name == "Dependencias CSS":
+                installed = all(statuses.get(dep) == "Detectado" for dep in CSS_DEPENDENCIES)
+            supported = self.snapshot is not None and self.snapshot.system.supported
+            available = name not in PLUGINS or statuses.get("Decky Loader") == "Detectado"
+            if name in ("Machine Ready TV", "Dependencias CSS", "Tema CSS seleccionado"):
+                available = statuses.get("CSS Loader") == "Detectado" and statuses.get("Decky Loader") == "Detectado"
+            if name in ("Proton-CachyOS", "Proton-GE"):
+                available = self.steam_combo.currentData() is not None
+                # La presencia en otro Steam no impide instalar en el destino elegido.
+                if available and self.snapshot:
+                    target = str(self.steam_combo.currentData()) + "/compatibilitytools.d/"
+                    finding = next((f for f in self.snapshot.proton if f.name == name), None)
+                    installed = finding is not None and target in finding.evidence
+            button.setText(f"{component} detectado" if installed else f"Instalar {component}")
+            if name == "Machine Ready TV":
+                button.setText("Instalar lo que falta de Machine Ready TV y sus dependencias")
+            button.setEnabled(supported and available and not installed
+                              and not self.installation_busy() and not scanning and not password_busy)
+            button.setToolTip("Completa primero los requisitos: Decky / CSS Loader o Steam de destino" if not available else
+                              "Disponible en SteamOS y Bazzite; requiere conexión a Internet")
+        self.password_button.setEnabled(not self.installation_busy() and not password_busy)
+
+    def install_message(self, message):
+        for log in self.install_logs:
+            # setPlainText evita interpretar como HTML la salida externa.
+            log.setPlainText(log.toPlainText() + "\n" + message)
+            bar = log.verticalScrollBar()
+            bar.setValue(bar.maximum())
+        self.statusBar().showMessage(message.splitlines()[-1] if message else "")
+        for panel in self.message_panels:
+            panel.summary.setText(message.splitlines()[-1] if message else "")
+
+    def installation_succeeded(self, details):
+        self.install_message(details)
+        self.operation_summary = f"Instalación de {self.install_worker.name} completada."
+        self.install_message(self.operation_summary)
+
+    def installation_failed(self, error):
+        self.operation_summary = f"No se completó la instalación de {self.install_worker.name}."
+        self.install_message(f"Error: {error}")
+        self.install_message(self.operation_summary)
+
+    def start_install(self, name):
+        button = self.install_buttons.get(name)
+        if button is None or not button.isEnabled():
+            return
+        self.operation_summary = ""
+        for log in self.install_logs:
+            log.setPlainText(f"Instalación solicitada: {name}")
+        target = self.steam_combo.currentData() if name in ("Proton-CachyOS", "Proton-GE") else None
+        if name == "Tema CSS seleccionado":
+            name = self.css_combo.currentText()
+        self.install_worker = InstallWorker(self.installer, name, self, target)
+        self.install_worker.progress.connect(self.install_message)
+        self.install_worker.succeeded.connect(self.installation_succeeded)
+        self.install_worker.failed.connect(self.installation_failed)
+        self.install_worker.finished.connect(self.install_finished)
+        self.install_worker.start()
+        self.refresh_button.setEnabled(False)
+        for item in self.install_buttons.values():
+            item.setEnabled(False)
+        self.password_button.setEnabled(False)
+
+    def change_password(self):
+        if self.installation_busy() or self.password_process.state() != QProcess.ProcessState.NotRunning:
+            return
+        try:
+            program, arguments = password_command()
+        except RuntimeError as exc:
+            self.password_note.setText(str(exc))
+            return
+        self.password_process.setProgram(program)
+        self.password_process.setArguments(arguments)
+        self.password_process.start()
+        self.password_note.setText("Konsole abrirá passwd para tu usuario. Introduce allí la contraseña siguiendo sus mensajes; PlayCore no registra la conversación. Cierra Konsole al terminar y se actualizará el estado.")
+        self.update_install_buttons()
+
+    def password_finished(self, *_):
+        self.password_note.setText("La terminal ha terminado. Revisa el estado de la contraseña; puedes volver a abrirla si no completaste el cambio.")
+        self.start_scan()
+
+    def password_error(self, *_):
+        self.password_note.setText("No se pudo abrir o mantener Konsole: " + self.password_process.errorString())
+        self.update_install_buttons()
+
+    def install_finished(self):
+        self.start_scan()
+
+    def profile_changed(self):
+        selected = self.profile_combo.currentData()
+        self.profile_note.setText(
+            f"Perfil consultado: {selected}. Para activarlo, selecciónalo manualmente en CSS Loader después de Nav Patch y Refresh."
+            if selected else "No se ha elegido ningún perfil. PlayCore no cambia la selección de CSS Loader."
+        )
+
+    def start_scan(self):
+        if self.installation_busy():
+            return
+        if self.worker is not None and self.worker.isRunning():
+            return
+        self.refresh_button.setEnabled(False)
+        self.statusBar().showMessage(self.operation_summary or "Leyendo inventario local…")
+        self.worker = ScanWorker(self.scanner, self)
+        self.worker.ready.connect(self.render_snapshot)
+        self.worker.failed.connect(self.scan_failed)
+        self.worker.finished.connect(self.scan_finished)
+        self.worker.start()
+        self.update_install_buttons()
+
+    def scan_finished(self):
+        self.refresh_button.setEnabled(not self.installation_busy())
+        self.update_install_buttons()
+
+    def scan_failed(self, message):
+        self.snapshot = None
+        self.statusBar().showMessage(self.operation_summary or message)
+        self.diagnostics.setPlainText(message)
+
+    def render_snapshot(self, snapshot):
+        self.snapshot = snapshot
+        system = snapshot.system
+        values = (system.pretty_name, system.version, system.hostname, system.kernel,
+                  system.desktop, system.session)
+        for label, value in zip(self.system_labels.values(), values):
+            label.setText(value)
+        self.compatibility.setText("Sistema objetivo detectado: SteamOS / Bazzite."
+                                   if system.supported else "Distribución fuera de los sistemas objetivo. El inventario sigue disponible; no se ejecutan cambios.")
+        self.account_label.setText(f"Usuario: {snapshot.username} · Contraseña: {snapshot.password_status}")
+        previous_steam = self.steam_combo.currentData()
+        self.steam_combo.blockSignals(True)
+        self.steam_combo.clear()
+        targets = steam_installations(self.scanner.home, self.scanner.env)
+        self.steam_combo.addItem("Selecciona Steam de destino…", None)
+        for target in targets:
+            self.steam_combo.addItem(str(target), str(target))
+        index = self.steam_combo.findData(previous_steam) if previous_steam else (1 if len(targets) == 1 else 0)
+        self.steam_combo.setCurrentIndex(max(0, index))
+        self.steam_combo.blockSignals(False)
+        for name, findings in (("Aplicaciones", snapshot.applications), ("Proton", snapshot.proton),
+                               ("Decky", snapshot.decky), ("Temas", snapshot.themes)):
+            self.tables[name].populate(findings)
+        selected = self.profile_combo.currentData()
+        self.profile_combo.blockSignals(True)
+        self.profile_combo.clear()
+        self.profile_combo.addItem("Sin selección · elige el perfil manualmente en CSS Loader", None)
+        for profile in snapshot.profiles:
+            self.profile_combo.addItem(profile, profile)
+        index = self.profile_combo.findData(selected) if selected else 0
+        self.profile_combo.setCurrentIndex(max(0, index))
+        self.profile_combo.blockSignals(False)
+        self.profile_changed()
+        self.free_space.setText(f"Espacio libre en el volumen del usuario: {snapshot.free_bytes / 1024**3:.1f} GiB"
+                                if snapshot.free_bytes >= 0 else "Espacio libre: desconocido")
+        self.diagnostics.setPlainText("\n".join(snapshot.warnings) or "Detección completada sin errores de lectura.\nNo detectado significa que no se encontró en las rutas comprobadas.")
+        self.statusBar().showMessage(self.operation_summary or f"Detección completada · {len(snapshot.warnings)} avisos")
+        self.update_install_buttons()
+
+    def closeEvent(self, event):
+        if self.password_process.state() != QProcess.ProcessState.NotRunning:
+            self.statusBar().showMessage("Termina y cierra la terminal de contraseña antes de cerrar PlayCore.")
+            event.ignore()
+            return
+        if self.installation_busy():
+            self.statusBar().showMessage("Espera a que termine la instalación antes de cerrar…")
+            event.ignore()
+            return
+        if self.worker is not None and self.worker.isRunning():
+            self.statusBar().showMessage("Espera a que termine la lectura antes de cerrar…")
+            event.ignore()
+            return
+        event.accept()

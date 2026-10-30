@@ -1,0 +1,59 @@
+PLAYCORE 1.0 — INSTALADOR GRÁFICO PARA BAZZITE / STEAMOS x86_64
+
+1. Copia el fichero PlayCore-1.0.0-Bazzite-x86_64.run a la otra máquina.
+2. Haz doble clic en él y elige Ejecutar si Dolphin lo pregunta.
+3. En la ventana del instalador pulsa Instalar PlayCore y, al terminar, Abrir PlayCore.
+
+No tienes que abrir una terminal ni escribir comandos. Si el navegador o el USB
+han quitado el permiso de ejecución, pulsa el botón derecho sobre el fichero:
+Propiedades → Permisos → Es ejecutable. Después vuelve a abrirlo con doble clic.
+El sistema puede pedir que confirmes que confías en el fichero descargado.
+
+No uses sudo. No necesita conexión: incluye las bibliotecas Qt de PySide6.
+Necesita Python 3.11 o posterior con venv, glibc >= 2.34 y KDE Plasma.
+No incluye un intérprete Python. No sirve en ARM ni en Windows.
+Reserva aproximadamente 1 GB libre entre el espacio temporal y la instalación.
+
+Al terminar, busca PlayCore en el menú de aplicaciones o pulsa Abrir PlayCore.
+
+Se instala en ~/.local/share/playcore/versions y crea dos accesos:
+  ~/.local/bin/playcore
+  ~/.local/share/applications/playcore.desktop
+
+Después puedes retirar el USB o borrar esta carpeta. La instalación no modifica
+la raíz inmutable, no usa rpm-ostree y no instala aplicaciones de juego ni Decky.
+Esas instalaciones solo comienzan al pulsar sus botones dentro de PlayCore y sí
+necesitan Internet. La contraseña se establece/cambia desde Sistema, en Konsole.
+La selección del perfil Machine Ready TV sigue siendo manual.
+
+Si la instalación falla, abre Mostrar mensajes en el instalador y conserva el error.
+El aspecto Breeze depende de la integración Qt disponible en la máquina.
+
+Los componentes Qt incluidos son PySide6 Essentials y shiboken6, versión 6.12.0:
+proporcionan los módulos que utiliza PlayCore. Sus avisos/licencias están incluidos
+en los wheels de wheels/ y se conservan al instalarlos. El código de PlayCore está
+en app/playcore/ para poder inspeccionarlo. README.md contiene la documentación.
+
+El usuario ha probado satisfactoriamente este instalador 1.0.
+Instrucciones en español e inglés: https://github.com/pettersdark/PlayCore
+Descargas: https://github.com/pettersdark/PlayCore/releases
+
+ENGLISH
+
+Double-click PlayCore-1.0.0-Bazzite-x86_64.run and choose Execute if asked.
+If the download lost executable permission, right-click → Properties → Permissions
+→ Is executable, then open it again. Click Instalar PlayCore (Install PlayCore),
+then Abrir PlayCore (Open PlayCore). A launcher is added to the application menu.
+No terminal or sudo is needed for the graphical installer. Qt dependencies are
+bundled, so installation works offline. The app interface is currently in Spanish.
+
+Requires Linux x86_64, KDE Plasma, Python 3.11+ with venv and safe tarfile filters,
+glibc 2.34+ and about 1 GB free. Python is not bundled. This file is not for ARM
+or Windows. Gaming components downloaded from PlayCore require Internet.
+
+Files are installed under ~/.local/share/playcore/versions. You may delete the
+downloaded installer afterwards. Expand Mostrar mensajes (Show messages) if an
+error occurs. Password setup/change uses Sistema → Establecer o cambiar contraseña…
+and opens passwd in Konsole; PlayCore does not receive or store the password.
+Machine Ready TV profile selection stays manual: enable Nav Patch, click Refresh,
+then choose and apply your profile in CSS Loader.
