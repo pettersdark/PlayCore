@@ -102,6 +102,7 @@ def install(bundle, destination, shortcuts=True):
                 str(python), "-I", "-c", BOOTSTRAP, str(pip_wheels[0]), "install",
                 "--no-index", "--no-cache-dir", "--disable-pip-version-check",
                 "--find-links", str(wheels), "PySide6-Essentials==" + metadata["qt_version"],
+                "PySide6-Addons==" + metadata["qt_version"],
             ], check=True)
             launcher = installation / "abrir-playcore.sh"
             launcher.write_text("#!/bin/sh\n# PlayCore launcher\nexec " + shlex.quote(str(python)) +

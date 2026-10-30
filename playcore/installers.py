@@ -158,7 +158,7 @@ class Installer:
         except (OSError, ValueError, UnicodeError):
             return None
 
-    def install(self, name, progress=lambda _: None, steam_target=None):
+    def install(self, name, progress=lambda _: None, steam_target=None, proton_latest=False):
         if name in FLATPAKS:
             if not self.which("flatpak"):
                 raise RuntimeError("Flatpak no está disponible en este equipo.")
@@ -213,6 +213,10 @@ class Installer:
             target = Path(steam_target).resolve() if steam_target else targets[0]
             if target not in targets:
                 raise ValueError("El destino no es una instalación de Steam detectada.")
+            if proton_latest:
+                latest_path = target / "compatibilitytools.d" / (name + " Latest")
+                if latest_path.exists() or latest_path.is_symlink():
+                    return f"{name} Latest ya existe en {latest_path}. Usa ProtonPlus para actualizarlo."
             repository = "CachyOS/proton-cachyos" if name == "Proton-CachyOS" else "GloriousEggroll/proton-ge-custom"
             release = self.json(f"https://api.github.com/repos/{repository}/releases/latest")
             architecture = {"x86_64": "x86_64", "aarch64": "arm64", "arm64": "arm64"}.get(platform.machine())
@@ -228,6 +232,7 @@ class Installer:
             if len(assets) != 1:
                 raise ValueError(f"No se encuentra una única publicación de {name} para esta arquitectura.")
             url, digest = github_asset(release, repository, assets[0]["name"])
+            progress(f"Última versión estable de {name}: {release.get('tag_name') or assets[0]['name']}")
             required = assets[0].get("size", 0) + 5 * 1024**3
             if shutil.disk_usage(target).free < required:
                 raise RuntimeError("Necesitas espacio para la descarga y al menos 5 GiB para descomprimir Proton.")
@@ -235,8 +240,19 @@ class Installer:
                 archive = Path(temp) / "proton.tar.xz"
                 self.file_downloader(url, archive, digest, progress)
                 progress(f"Extrayendo {name} en la instalación de Steam elegida…")
-                destination = install_proton_archive(archive, target, name)
-            return f"Instalación de {name} completada.\nInstalado en {destination}. Reinicia Steam y selecciona {name} manualmente en Compatibilidad."
+                metadata = None
+                if proton_latest:
+                    metadata = {
+                        "runner_endpoint": f"https://api.github.com/repos/{repository}/releases",
+                        "runner_title": name,
+                        "tag": release.get("tag_name") or release.get("name", ""),
+                        "variant_id": (("x86-64" if architecture == "x86_64" else "arm64")
+                                       if name == "Proton-CachyOS" else
+                                       ("x86" if architecture == "x86_64" else "aarch64")),
+                    }
+                destination = install_proton_archive(archive, target, name, metadata)
+            selected_name = name + " Latest" if proton_latest else name
+            return f"Instalación de {name} completada.\nInstalado en {destination}. Reinicia Steam y selecciona {selected_name} manualmente en Compatibilidad."
         elif name == "Machine Ready TV":
             self.install_css((), progress)  # Comprueba Decky y CSS Loader antes de escribir.
             progress("Consultando una revisión fija del repositorio Machine Ready TV…")

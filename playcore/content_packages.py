@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import re
 import shutil
 import stat
 import tarfile
@@ -79,7 +80,50 @@ def install_machine_zip(payload, themes_dir):
         return added, skipped
 
 
-def install_proton_archive(archive_path, steam_root, component="Proton-CachyOS"):
+def prepare_proton_latest(staged, component, metadata):
+    """Mantiene el nombre fijo y el recibo que reconoce ProtonPlus."""
+    manifest = staged / "compatibilitytool.vdf"
+    content = manifest.read_text()
+    tokens = list(re.finditer(r'"(?:\\.|[^"\\])*"|[{}]|//[^\n]*', content))
+    tokens = [token for token in tokens if not token.group().startswith("//")]
+    index, replacements, tools = 0, [], []
+
+    def parse(path=()):
+        nonlocal index
+        while index < len(tokens) and tokens[index].group() != "}":
+            key = tokens[index]
+            if not key.group().startswith('"'):
+                raise ValueError("Manifiesto Proton Latest no válido.")
+            index += 1
+            if index >= len(tokens):
+                raise ValueError("Manifiesto Proton Latest incompleto.")
+            value = tokens[index]
+            index += 1
+            current = (*path, key.group()[1:-1])
+            if value.group() == "{":
+                if path in (("compat_tools",), ("compatibilitytools", "compat_tools")):
+                    tools.append(current)
+                    replacements.append((key.start(), key.end()))
+                parse(current)
+                if index >= len(tokens) or tokens[index].group() != "}":
+                    raise ValueError("Manifiesto Proton Latest incompleto.")
+                index += 1
+            elif value.group().startswith('"'):
+                if path in tools and current[-1] == "display_name":
+                    replacements.append((value.start(), value.end()))
+            else:
+                raise ValueError("Manifiesto Proton Latest no válido.")
+
+    parse()
+    if index != len(tokens) or len(tools) != 1 or len(replacements) != 2:
+        raise ValueError("Se esperaba una única herramienta Proton con display_name.")
+    for start, end in sorted(replacements, reverse=True):
+        content = content[:start] + json.dumps(component + " Latest") + content[end:]
+    manifest.write_text(content)
+    (staged / ".protonplus").write_text(json.dumps(metadata, indent=2) + "\n")
+
+
+def install_proton_archive(archive_path, steam_root, component="Proton-CachyOS", latest_metadata=None):
     prefixes = {"Proton-CachyOS": "proton-cachyos", "Proton-GE": "ge-proton"}
     prefix = prefixes[component]
     target_base = steam_root / "compatibilitytools.d"
@@ -113,7 +157,9 @@ def install_proton_archive(archive_path, steam_root, component="Proton-CachyOS")
         staged = Path(temp) / next(iter(roots))
         if not (staged / "proton").is_file() or not (staged / "compatibilitytool.vdf").is_file():
             raise ValueError("Faltan los archivos de una herramienta de compatibilidad Steam.")
-        destination = target_base / staged.name
+        if latest_metadata is not None:
+            prepare_proton_latest(staged, component, latest_metadata)
+        destination = target_base / (component + " Latest" if latest_metadata is not None else staged.name)
         if destination.exists() or destination.is_symlink():
             raise FileExistsError(f"Esta versión de {component} ya está instalada.")
         os.rename(staged, destination)

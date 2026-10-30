@@ -11,6 +11,7 @@ The graphical installer bundles unmodified PyPI wheels for:
 | Component | Version | Source |
 | --- | --- | --- |
 | PySide6 Essentials / Qt for Python | 6.12.0 | https://pypi.org/project/PySide6-Essentials/6.12.0/ |
+| PySide6 Addons / Qt WebSockets | 6.12.0 | https://pypi.org/project/PySide6-Addons/6.12.0/ |
 | shiboken6 | 6.12.0 | https://pypi.org/project/shiboken6/6.12.0/ |
 | pip (offline bootstrap only) | 26.1.2 | https://pypi.org/project/pip/26.1.2/ |
 

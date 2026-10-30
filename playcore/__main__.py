@@ -15,7 +15,8 @@ def main():
     app = QApplication([sys.argv[0], *qt_arguments])
     app.setApplicationName("PlayCore")
     app.setOrganizationName("PlayCore")
-    app.setApplicationVersion("1.0.0")
+    from . import __version__
+    app.setApplicationVersion(__version__)
     # Qt utiliza el plugin de plataforma y estilo del escritorio, sin QSS ni paleta forzada.
     window = MainWindow()
     window.navigation.setCurrentRow([name for name, _ in MainWindow.SECTIONS].index(arguments.section))

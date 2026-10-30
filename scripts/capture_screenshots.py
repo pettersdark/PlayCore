@@ -25,13 +25,13 @@ def demo_snapshot():
          Finding("ProtonPlus", "Detectado", "Flatpak: com.vysp3r.ProtonPlus")),
         (Finding("Proton-CachyOS", "Detectado", steam + "/compatibilitytools.d/proton-cachyos"),
          Finding("Proton-GE", "No detectado")),
-        tuple(Finding(name, "Detectado" if name != "Decky Launch Options" else "No detectado",
+        tuple(Finding(name, "Detectado",
                       "~/homebrew/" + location if location else "")
               for name, location in (("Decky Loader", "services/PluginLoader"),
                                      ("SteamGridDB", "plugins/decky-steamgriddb/plugin.json"),
                                      ("HLTB", "plugins/hltb-for-deck/plugin.json"),
                                      ("CSS Loader", "plugins/SDH-CssLoader/plugin.json"),
-                                     ("Decky Launch Options", ""))),
+                                     ("Decky Launch Options", "plugins/launch-options/plugin.json"))),
         tuple(Finding(name, "Detectado", "~/homebrew/themes/" + name + "/theme.json")
               for name in ("Machine Ready", *CSS_DEPENDENCIES)),
         ("MR - Back 2 Basic.profile", "MR - Clean Glass.profile", "MR - Soft Play.profile"),
@@ -86,5 +86,5 @@ def capture(output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "docs/images/v1.0")
+    parser.add_argument("--output", type=Path, default=ROOT / "docs/images/v1.1")
     capture(parser.parse_args().output.resolve())

@@ -113,12 +113,14 @@ class CatalogInstallerTests(unittest.TestCase):
         with tarfile.open(source, "w:xz") as archive:
             for name in ("proton", "compatibilitytool.vdf"):
                 member = tarfile.TarInfo("proton-cachyos-test/" + name)
-                member.size = 1
-                archive.addfile(member, io.BytesIO(b"x"))
+                data = (b'"compatibilitytools" { "compat_tools" { "old-name" { "display_name" "Old name" "install_path" "." } } }'
+                        if name == "compatibilitytool.vdf" else b"x")
+                member.size = len(data)
+                archive.addfile(member, io.BytesIO(data))
         repository = "CachyOS/proton-cachyos"
         url = f"https://github.com/{repository}/releases/download/v1/proton-cachyos-test-slr-x86_64.tar.xz"
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
-        release = {"assets": [{"name": "proton-cachyos-test-slr-x86_64.tar.xz", "size": 1,
+        release = {"tag_name": "v1", "assets": [{"name": "proton-cachyos-test-slr-x86_64.tar.xz", "size": 1,
                                "browser_download_url": url, "digest": "sha256:" + digest}]}
         self.installer.downloader = lambda *args: json.dumps(release).encode()
         def copy(url_arg, destination, digest_arg, progress):
@@ -128,6 +130,20 @@ class CatalogInstallerTests(unittest.TestCase):
         with patch.dict("os.environ", {}, clear=True), patch("playcore.installers.platform.machine", return_value="x86_64"), patch("playcore.installers.shutil.disk_usage") as usage:
             usage.return_value.free = 10 * 1024**3
             message = self.installer.install("Proton-CachyOS", steam_target=str(target))
+            latest_message = self.installer.install("Proton-CachyOS", steam_target=str(target), proton_latest=True)
+            latest = target / "compatibilitytools.d/Proton-CachyOS Latest"
+            manifest = (latest / "compatibilitytool.vdf").read_text()
+            self.assertEqual(manifest.count('"Proton-CachyOS Latest"'), 2)
+            self.assertIn('"install_path" "."', manifest)
+            self.assertIn("selecciona Proton-CachyOS Latest", latest_message)
+            receipt = json.loads((latest / ".protonplus").read_text())
+            self.assertEqual(receipt, {
+                "runner_endpoint": f"https://api.github.com/repos/{repository}/releases",
+                "runner_title": "Proton-CachyOS", "tag": "v1", "variant_id": "x86-64",
+            })
+            self.installer.downloader = lambda *args: self.fail("Latest existente no debe volver a descargarse")
+            self.assertIn("Usa ProtonPlus", self.installer.install(
+                "Proton-CachyOS", steam_target=str(target), proton_latest=True))
         self.assertIn("Reinicia Steam", message)
         self.assertTrue((target / "compatibilitytools.d/proton-cachyos-test/proton").is_file())
         self.assertEqual(self.calls, [])

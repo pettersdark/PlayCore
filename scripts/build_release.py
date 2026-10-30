@@ -9,7 +9,9 @@ import tarfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "1.0.0"
+import sys
+sys.path.insert(0, str(ROOT))
+from playcore import __version__ as VERSION
 QT_VERSION = "6.12.0"
 NAME = f"PlayCore-{VERSION}-Bazzite-x86_64"
 
@@ -20,6 +22,7 @@ def build(wheel_dir, output):
         raise FileExistsError(f"La entrega ya existe: {bundle}. Elige otra carpeta de salida.")
     wanted = (
         f"pyside6_essentials-{QT_VERSION}-cp310-abi3-manylinux_2_34_x86_64.whl",
+        f"pyside6_addons-{QT_VERSION}-cp310-abi3-manylinux_2_34_x86_64.whl",
         f"shiboken6-{QT_VERSION}-cp310-abi3-manylinux_2_34_x86_64.whl",
         "pip-26.1.2-py3-none-any.whl",
     )
@@ -73,7 +76,7 @@ def build_executable(archive, executable):
     code = (ROOT / "packaging/self_extract.py").read_text(encoding="utf-8")
     code = code.replace("@PAYLOAD_SHA256@", digest).replace("@BUNDLE_NAME@", NAME)
     header = (
-        "#!/bin/sh\n# Instalador gráfico offline de PlayCore 1.0\n"
+        f"#!/bin/sh\n# Instalador gráfico offline de PlayCore {VERSION}\n"
         "if ! command -v python3 >/dev/null 2>&1; then\n"
         "  if command -v kdialog >/dev/null 2>&1; then\n"
         "    kdialog --error 'PlayCore necesita Python 3.11 o posterior en el sistema.'\n"

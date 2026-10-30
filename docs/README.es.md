@@ -1,6 +1,6 @@
-# PlayCore 1.0
+# PlayCore 1.1
 
-![PlayCore: sistema y estado de la cuenta, con datos de demostración](images/v1.0/sistema.png)
+![PlayCore: sistema y estado de la cuenta, con datos de demostración](images/v1.1/sistema.png)
 
 [Ver todas las capturas](../README.md#screenshots). Son capturas de la interfaz real
 con datos de demostración; no muestran información personal ni instalaciones reales.
@@ -11,7 +11,8 @@ No se instala nada al abrir la aplicación.
 
 La versión 1.0 añade Proton-GE, un resumen persistente de instalación completada,
 mensajes pequeños y plegables, y un instalador gráfico offline de un solo fichero.
-El usuario ha probado el instalador 1.0 y ha autorizado su publicación pública en pettersdark/PlayCore.
+La versión 1.1.0 añade Proton Latest e importación directa de perfiles FSR/OptiScaler
+con confirmación en Decky. Las notas completas están en RELEASE_NOTES.md.
 
 ## Abrir
 
@@ -79,6 +80,12 @@ No admite plugins con permisos root o descargas adicionales de binarios.
 
 **Proton-CachyOS y Proton-GE:** selecciona CachyOS SLR para x86_64 base o arm64,
 sin elegir x86_64_v3 automáticamente, o la publicación oficial GE para x86_64/aarch64.
+La modalidad predeterminada **Latest · para actualizar con ProtonPlus** instala
+la última versión estable en `Proton-CachyOS Latest` o `Proton-GE Latest`, con ese
+mismo identificador en Steam y el recibo `.protonplus` (origen, versión y arquitectura).
+ProtonPlus puede reconocerla y gestionar sus actualizaciones. Si Latest ya existe,
+PlayCore lo conserva e indica que se actualice desde ProtonPlus. La alternativa
+**Versión independiente** conserva el nombre de la versión publicada.
 Admite también las publicaciones anteriores de GE sin sufijo de arquitectura en x86_64.
 Descarga por bloques a disco y valida SHA-256 antes de extraer.
 Requiere espacio para la descarga y 5 GiB de margen. Elige Steam de destino si hay
@@ -135,6 +142,11 @@ El selector de perfiles de PlayCore es de consulta y no aplica ninguno.
 
 ## Detección y estructura
 
+La acción **Decky → Instalar perfiles FSR/OptiScaler** prepara una importación mediante
+`dlo-add-launch-options` con confirmación en Steam. Comprueba antes el plugin y no
+escribe en sus ajustes. Consulta los comandos, requisitos, exclusión entre perfiles
+y verificación en **Manage Launch Options** en la [guía de importación](DECKY_LAUNCH_OPTIONS.md).
+
 El inventario lee `os-release`, hostname, despliegues Flatpak de usuario/sistema,
 ejecutables en PATH y manifiestos de Decky y temas. Respeta `XDG_DATA_HOME` y las
 rutas habituales de Steam nativo y Flatpak. Los datos residuales de `~/.var/app`
@@ -185,7 +197,7 @@ anterior fue probado por el usuario.
 
 ## Paquete para probar en otro equipo
 
-El fichero principal es `entrega/PlayCore-1.0.0-Bazzite-x86_64.run`. Cópialo a Bazzite
+El fichero principal es `entrega/PlayCore-1.1.0-Bazzite-x86_64.run`. Cópialo a Bazzite
 y ábrelo con doble clic: se abre un asistente con **Instalar PlayCore** y, al terminar,
 **Abrir PlayCore**. No hay que abrir una terminal ni escribir comandos. Si el navegador
 o el USB elimina el permiso de ejecución, actívalo gráficamente en **Propiedades →
@@ -205,7 +217,8 @@ en el menú de aplicaciones. Puedes borrar la carpeta del instalador después.
 Las descargas de aplicaciones y complementos desde PlayCore siguen necesitando red.
 `LEEME.txt` contiene los pasos y las limitaciones de la prueba en Bazzite.
 
-Para reconstruir el paquete con los tres wheels ya descargados:
+Para reconstruir el paquete con los cuatro wheels ya descargados (PySide6 Essentials,
+PySide6 Addons para Qt WebSockets, shiboken6 y pip):
 
 ```bash
 python3 scripts/build_release.py --wheel-dir /ruta/a/los/wheels --output /ruta/de/entrega
@@ -218,7 +231,7 @@ en carpetas temporales, sin instalar componentes de juego ni cambiar contraseña
 ## Distribución en GitHub
 
 El repositorio de destino es [pettersdark/PlayCore](https://github.com/pettersdark/PlayCore).
-La descarga para el usuario final es el fichero `.run` de la [Release 1.0.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.0.0).
+La descarga para el usuario final es el fichero `.run` de la [Release 1.1.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.1.0).
 Consulta [las instrucciones en ambos idiomas](../README.md) y [el procedimiento de publicación](PUBLICAR_GITHUB.md).
 
 ## Fuentes del catálogo

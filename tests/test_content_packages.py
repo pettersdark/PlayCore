@@ -6,7 +6,7 @@ import unittest
 import zipfile
 from pathlib import Path
 
-from playcore.content_packages import install_machine_zip, install_proton_archive, install_theme_zip
+from playcore.content_packages import install_machine_zip, install_proton_archive, install_theme_zip, prepare_proton_latest
 
 
 def theme_zip(entries):
@@ -82,6 +82,26 @@ class ContentTests(unittest.TestCase):
         self.assertTrue((result / "proton").stat().st_mode & 0o111)
         with self.assertRaises(FileExistsError):
             install_proton_archive(archive, steam)
+
+    def test_latest_manifest_keeps_other_fields_and_rejects_ambiguous_tools(self):
+        manifest = self.root / "compatibilitytool.vdf"
+        for wrapper in (False, True):
+            content = ('// upstream name\n"compat_tools" { "GE-Proton11-11" { '
+                       '"display_name" "GE-Proton11-11" "install_path" "." '
+                       '"from_oslist" "windows" "to_oslist" "linux" } }')
+            if wrapper:
+                content = '"compatibilitytools" { ' + content + ' }'
+            manifest.write_text(content)
+            prepare_proton_latest(self.root, "Proton-GE", {"tag": "GE-Proton11-11"})
+            self.assertEqual(manifest.read_text().count('"Proton-GE Latest"'), 2)
+            self.assertIn('"from_oslist" "windows"', manifest.read_text())
+            self.assertEqual(json.loads((self.root / ".protonplus").read_text())["tag"], "GE-Proton11-11")
+        for invalid in ('fixture', '"compat_tools" { "one" { "display_name" "One" } "two" { "display_name" "Two" } }',
+                        '"compat_tools" { "one" { "install_path" "." } }'):
+            manifest.write_text(invalid)
+            with self.assertRaises(ValueError):
+                prepare_proton_latest(self.root, "Proton-GE", {})
+            self.assertEqual(manifest.read_text(), invalid)
 
     def test_proton_rejects_external_links_and_path_traversal(self):
         for link in ("/etc/passwd", "../../outside"):

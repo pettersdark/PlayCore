@@ -46,6 +46,28 @@ class GuiTests(unittest.TestCase):
         self.window.render_snapshot(self.scanner.scan())
         self.assertEqual(self.window.profile_combo.currentData(), "Soft Play.profile")
 
+
+
+
+    def test_proton_latest_remains_available_with_an_older_version(self):
+        (self.home / "etc").mkdir()
+        (self.home / "etc/os-release").write_text("ID=steamos")
+        steam = self.home / ".local/share/Steam"
+        for version in ("proton-cachyos-old", "GE-Proton10-1"):
+            folder = steam / "compatibilitytools.d" / version
+            folder.mkdir(parents=True)
+            (folder / "proton").touch()
+            (folder / "compatibilitytool.vdf").touch()
+        with patch("playcore.ui.steam_installations", return_value=(steam,)):
+            self.window.render_snapshot(self.scanner.scan())
+        for name in ("Proton-CachyOS", "Proton-GE"):
+            button = self.window.install_buttons[name]
+            self.assertTrue(button.isEnabled())
+            self.assertIn("Latest", button.text())
+        self.assertIs(self.window.proton_mode_combo.currentData(), True)
+        self.window.proton_mode_combo.setCurrentIndex(1)
+        self.assertNotIn("Latest", self.window.install_buttons["Proton-GE"].text())
+
     def test_background_scan_and_refresh(self):
         loop = QEventLoop()
         self.window.start_scan()
@@ -115,6 +137,39 @@ class GuiTests(unittest.TestCase):
         self.assertTrue(self.window.install_logs[0].toPlainText().endswith("Instalación de Heroic completada."))
         self.window.render_snapshot(self.scanner.scan())
         self.assertEqual(self.window.statusBar().currentMessage(), "Instalación de Heroic completada.")
+
+    def test_launch_profiles_require_plugin_and_prepare_only_on_click(self):
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertFalse(self.window.launch_profiles_button.isEnabled())
+        manifest = self.home / "homebrew/plugins/dlo/plugin.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text('{"name":"Launch Options"}')
+        self.window.render_snapshot(self.scanner.scan())
+        self.assertTrue(self.window.launch_profiles_button.isEnabled())
+        with patch("playcore.ui.QDialog.exec"), patch("playcore.ui.QApplication.clipboard") as clipboard:
+            self.window.show_manual_launch_profiles()
+            clipboard.assert_not_called()
+        manifest.unlink()
+        with patch("playcore.ui.QDialog.exec") as show:
+            self.window.show_manual_launch_profiles()
+            show.assert_not_called()
+        self.assertIn("no detectado", self.window.install_logs[0].toPlainText())
+
+    def test_direct_import_runs_in_worker_and_reports_confirmation_pending(self):
+        manifest = self.home / "homebrew/plugins/dlo/plugin.json"
+        manifest.parent.mkdir(parents=True)
+        manifest.write_text('{"name":"Launch Options"}')
+        self.window.render_snapshot(self.scanner.scan())
+        loop = QEventLoop()
+        with patch("playcore.ui.request_import", return_value="Importación pendiente de confirmación") as request:
+            self.window.launch_profiles_button.click()
+            self.window.launch_profiles_worker.finished.connect(loop.quit)
+            QTimer.singleShot(5000, loop.quit)
+            loop.exec()
+            self.app.processEvents()
+            request.assert_called_once_with(self.scanner)
+        self.assertIn("pendiente", self.window.install_logs[0].toPlainText())
+        self.assertTrue(self.window.launch_profiles_button.isEnabled())
 
     def test_message_panels_are_small_and_can_be_opened_and_closed(self):
         panel = self.window.message_panels[0]

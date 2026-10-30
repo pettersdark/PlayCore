@@ -27,7 +27,7 @@ def smoke(bundle, arguments):
     completed = []
     def finished(code, status):
         completed.append(code)
-        window.grab().save('/tmp/playcore-1.0-installer-success.png')
+        window.grab().save('/tmp/playcore-1.1-installer-success.png')
         window.close()
         app.quit()
     window.process.finished.connect(finished)
@@ -68,7 +68,7 @@ def finish():
     assert all(panel.log.isHidden() for panel in window.message_panels)
     window.navigation.setCurrentRow(2)
     app.processEvents()
-    window.grab().save('/tmp/playcore-1.0-installed-app.png')
+    window.grab().save('/tmp/playcore-1.1-installed-app.png')
     completed.append(True)
     window.close()
     app.quit()
@@ -82,7 +82,7 @@ print('Interfaz instalada PlayCore', __version__, ': OK')
 
 def main(bundle):
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
-    with tempfile.TemporaryDirectory(prefix="playcore-1.0-smoke-") as temp:
+    with tempfile.TemporaryDirectory(prefix="playcore-1.1-smoke-") as temp:
         destination = Path(temp) / "instalación gráfica con espacios"
         result = Path(temp) / "installed-path.txt"
         # Python del sistema, sin usar las dependencias del entorno de desarrollo.

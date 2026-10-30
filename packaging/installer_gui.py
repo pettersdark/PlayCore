@@ -1,6 +1,7 @@
 """Instalador gráfico: no inicia instalaciones antes de pulsar Instalar."""
 import argparse
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -23,6 +24,8 @@ class InstallerWindow(QDialog):
     def __init__(self, bundle, destination=None, shortcuts=True):
         super().__init__()
         self.bundle = Path(bundle)
+        manifest = self.bundle / "manifest.json"
+        self.version = json.loads(manifest.read_text())["version"] if manifest.is_file() else "1.1.0"
         self.destination = destination or Path.home() / ".local/share/playcore"
         self.shortcuts = shortcuts
         self.installed_path = None
@@ -31,12 +34,12 @@ class InstallerWindow(QDialog):
         self.process.readyReadStandardError.connect(self.read_stderr)
         self.process.finished.connect(self.install_finished)
         self.process.errorOccurred.connect(self.process_error)
-        self.setWindowTitle("Instalar PlayCore 1.0")
+        self.setWindowTitle(f"Instalar PlayCore {self.version}")
         self.setWindowIcon(QIcon.fromTheme("applications-games"))
         self.resize(650, 340)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 20)
-        title = QLabel("PlayCore 1.0")
+        title = QLabel(f"PlayCore {self.version}")
         font = title.font()
         font.setPointSize(font.pointSize() + 8)
         font.setBold(True)
@@ -126,7 +129,7 @@ class InstallerWindow(QDialog):
             if not (self.installed_path / "abrir-playcore.sh").is_file():
                 self.fail("El proceso terminó sin crear el lanzador de PlayCore.")
                 return
-            self.status.setText("Instalación de PlayCore 1.0 completada. Ya puedes abrir la aplicación.")
+            self.status.setText(f"Instalación de PlayCore {self.version} completada. Ya puedes abrir la aplicación.")
             self.progress.setValue(100)
             self.open_button.setEnabled(True)
             self.install_button.setText("Instalado")

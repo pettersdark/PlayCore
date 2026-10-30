@@ -2,7 +2,7 @@
 from PySide6.QtCore import QProcess, QThread, Signal, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QComboBox, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QApplication, QComboBox, QDialog, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QListWidget, QListWidgetItem, QMainWindow, QPushButton, QScrollArea,
     QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QTextBrowser, QToolButton,
     QVBoxLayout, QWidget,
@@ -12,7 +12,11 @@ from .catalog import CSS_DEPENDENCIES, MACHINE_READY_URL, PLUGINS, PROFILE_STEPS
 from .detection import Scanner
 from .installers import Installer, steam_installations
 from .accounts import password_command
+from .launch_options import GUIDE as LAUNCH_OPTIONS_GUIDE, WARNING as LAUNCH_OPTIONS_WARNING, import_script
+from .steam_bridge import request_import
 from . import __version__
+
+
 
 
 class MessagePanel(QWidget):
@@ -48,17 +52,19 @@ class InstallWorker(QThread):
     succeeded = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, installer, name, parent=None, steam_target=None):
+    def __init__(self, installer, name, parent=None, steam_target=None, proton_latest=False):
         super().__init__(parent)
         self.installer, self.name = installer, name
         self.steam_target = steam_target
+        self.proton_latest = proton_latest
 
     def run(self):
         try:
             if self.steam_target is None:
                 result = self.installer.install(self.name, self.progress.emit)
             else:
-                result = self.installer.install(self.name, self.progress.emit, self.steam_target)
+                result = self.installer.install(self.name, self.progress.emit, self.steam_target,
+                                                proton_latest=self.proton_latest)
             self.succeeded.emit(result)
         except Exception as exc:
             self.failed.emit(str(exc))
@@ -77,6 +83,20 @@ class ScanWorker(QThread):
             self.ready.emit(self.scanner.scan())
         except Exception as exc:
             self.failed.emit(f"No se pudo completar la detección: {exc}")
+
+
+class LaunchProfilesWorker(QThread):
+    result = Signal(str)
+
+    def __init__(self, scanner, parent=None):
+        super().__init__(parent)
+        self.scanner = scanner
+
+    def run(self):
+        try:
+            self.result.emit(request_import(self.scanner))
+        except Exception as exc:
+            self.result.emit(str(exc))
 
 
 class InventoryTable(QTableWidget):
@@ -122,6 +142,7 @@ class MainWindow(QMainWindow):
         self.worker = None
         self.installer = installer or Installer()
         self.install_worker = None
+        self.launch_profiles_worker = None
         self.install_buttons = {}
         self.install_logs = []
         self.message_panels = []
@@ -231,11 +252,25 @@ class MainWindow(QMainWindow):
                     grid.addWidget(button, index // 2, index % 2)
                 layout.addLayout(grid)
                 layout.addWidget(paragraph("Instalar Decky Loader ejecuta su instalador oficial: crea el servicio y habilita la depuración remota de Steam; en Bazzite también puede ajustar el contexto SELinux. Configura tu contraseña desde Sistema antes de autorizarlo."))
+                self.launch_profiles_button = QPushButton("Instalar perfiles FSR/OptiScaler")
+                self.launch_profiles_button.setEnabled(False)
+                self.launch_profiles_button.clicked.connect(self.prepare_launch_profiles)
+                layout.addWidget(self.launch_profiles_button)
+                manual_profiles = QPushButton("Ver procedimiento manual de importación…")
+                manual_profiles.clicked.connect(self.show_manual_launch_profiles)
+                layout.addWidget(manual_profiles)
+                layout.addWidget(paragraph(LAUNCH_OPTIONS_WARNING))
                 self.add_install_log(layout)
             elif name == "Proton":
-                layout.addWidget(paragraph("Instala Proton-CachyOS SLR o Proton-GE estable para tu arquitectura. La descarga puede ocupar cientos de MB. Elige el Steam de destino; después reinicia Steam y selecciona la herramienta manualmente."))
+                layout.addWidget(paragraph("Instala Proton-CachyOS SLR o Proton-GE. Latest mantiene un nombre fijo en Steam y los datos de instalación para que ProtonPlus lo reconozca y lo actualice. Reinicia Steam después de instalarlo y selecciónalo en Compatibilidad."))
+                self.proton_mode_combo = QComboBox()
+                self.proton_mode_combo.setAccessibleName("Modalidad de instalación de Proton")
+                self.proton_mode_combo.addItem("Latest · para actualizar con ProtonPlus", True)
+                self.proton_mode_combo.addItem("Versión independiente · última estable", False)
+                self.proton_mode_combo.currentIndexChanged.connect(self.update_install_buttons)
+                layout.addWidget(self.proton_mode_combo)
                 self.steam_combo = QComboBox()
-                self.steam_combo.setAccessibleName("Instalación de Steam para Proton-CachyOS")
+                self.steam_combo.setAccessibleName("Instalación de Steam para Proton")
                 self.steam_combo.currentIndexChanged.connect(self.update_install_buttons)
                 layout.addWidget(self.steam_combo)
                 self.add_install_button(layout, "Proton-CachyOS")
@@ -278,6 +313,16 @@ class MainWindow(QMainWindow):
             self.diagnostics.setAccessibleName("Avisos de diagnóstico")
             layout.addWidget(self.diagnostics, 1)
 
+
+
+
+
+
+
+
+
+
+
     def add_install_button(self, layout, name):
         button = QPushButton(QIcon.fromTheme("list-add"), f"Instalar {name}")
         button.setEnabled(False)
@@ -294,7 +339,48 @@ class MainWindow(QMainWindow):
         layout.addWidget(panel)
 
     def installation_busy(self):
-        return self.install_worker is not None and self.install_worker.isRunning()
+        return ((self.install_worker is not None and self.install_worker.isRunning())
+                or (self.launch_profiles_worker is not None and self.launch_profiles_worker.isRunning()))
+
+    def prepare_launch_profiles(self):
+        if self.installation_busy():
+            return
+        self.install_message("Conectando con Steam para solicitar la importación de perfiles…")
+        self.launch_profiles_worker = LaunchProfilesWorker(self.scanner, self)
+        self.launch_profiles_worker.result.connect(self.install_message)
+        self.launch_profiles_worker.finished.connect(self.scan_finished)
+        self.refresh_button.setEnabled(False)
+        self.launch_profiles_worker.start()
+        self.update_install_buttons()
+
+    def show_manual_launch_profiles(self):
+        try:
+            script = import_script(self.scanner)
+        except (OSError, RuntimeError) as exc:
+            self.install_message(str(exc))
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Perfiles preparados · importación pendiente en Decky")
+        dialog.resize(800, 650)
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(paragraph(LAUNCH_OPTIONS_WARNING))
+        guide = QTextBrowser()
+        guide.setPlainText(LAUNCH_OPTIONS_GUIDE)
+        layout.addWidget(guide, 2)
+        preview = QTextBrowser()
+        preview.setAccessibleName("Script de importación para la consola de Steam")
+        preview.setPlainText(script)
+        layout.addWidget(preview, 1)
+        copy = QPushButton("Copiar script de importación")
+        def copy_script():
+            QApplication.clipboard().setText(script)
+            copy.setText("Script copiado · ejecuta y confirma en Steam")
+        copy.clicked.connect(copy_script)
+        layout.addWidget(copy)
+        close = QPushButton("Cerrar")
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close)
+        dialog.exec()
 
     def update_install_buttons(self):
         statuses = {}
@@ -303,6 +389,12 @@ class MainWindow(QMainWindow):
                                                   *self.snapshot.themes, *self.snapshot.proton)}
         scanning = self.worker is not None and self.worker.isRunning()
         password_busy = self.password_process.state() != QProcess.ProcessState.NotRunning
+        if hasattr(self, "launch_profiles_button"):
+            self.launch_profiles_button.setEnabled(
+                statuses.get("Decky Launch Options") == "Detectado"
+                and not scanning and not self.installation_busy() and not password_busy)
+            self.launch_profiles_button.setToolTip(
+                "Solicita la importación directamente en Steam; revisa y confirma en Decky.")
         for name, button in self.install_buttons.items():
             component = self.css_combo.currentText() if name == "Tema CSS seleccionado" else name
             installed = statuses.get(component) == "Detectado"
@@ -314,12 +406,12 @@ class MainWindow(QMainWindow):
                 available = statuses.get("CSS Loader") == "Detectado" and statuses.get("Decky Loader") == "Detectado"
             if name in ("Proton-CachyOS", "Proton-GE"):
                 available = self.steam_combo.currentData() is not None
-                # La presencia en otro Steam no impide instalar en el destino elegido.
-                if available and self.snapshot:
-                    target = str(self.steam_combo.currentData()) + "/compatibilitytools.d/"
-                    finding = next((f for f in self.snapshot.proton if f.name == name), None)
-                    installed = finding is not None and target in finding.evidence
             button.setText(f"{component} detectado" if installed else f"Instalar {component}")
+            if name in ("Proton-CachyOS", "Proton-GE"):
+                # Detectar una versión local no indica si coincide con Latest.
+                installed = False
+                mode = "Latest" if self.proton_mode_combo.currentData() else "última estable"
+                button.setText(f"Instalar {component} · {mode}")
             if name == "Machine Ready TV":
                 button.setText("Instalar lo que falta de Machine Ready TV y sus dependencias")
             button.setEnabled(supported and available and not installed
@@ -358,7 +450,8 @@ class MainWindow(QMainWindow):
         target = self.steam_combo.currentData() if name in ("Proton-CachyOS", "Proton-GE") else None
         if name == "Tema CSS seleccionado":
             name = self.css_combo.currentText()
-        self.install_worker = InstallWorker(self.installer, name, self, target)
+        latest = bool(self.proton_mode_combo.currentData()) if target is not None else False
+        self.install_worker = InstallWorker(self.installer, name, self, target, latest)
         self.install_worker.progress.connect(self.install_message)
         self.install_worker.succeeded.connect(self.installation_succeeded)
         self.install_worker.failed.connect(self.installation_failed)
