@@ -1,11 +1,11 @@
 """Widgets Qt nativos: se respeta la paleta, tipografía y estilo del escritorio."""
-from PySide6.QtCore import QProcess, QThread, Signal, Qt
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import QProcess, QThread, QTimer, QUrl, Signal, Qt
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication, QComboBox, QDialog, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
     QListWidget, QListWidgetItem, QMainWindow, QPushButton, QScrollArea,
     QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QTextBrowser, QToolButton,
-    QVBoxLayout, QWidget,
+    QVBoxLayout, QWidget, QProgressBar, QMessageBox,
 )
 
 from .catalog import CSS_DEPENDENCIES, MACHINE_READY_URL, PLUGINS, PROFILE_STEPS
@@ -15,8 +15,25 @@ from .accounts import password_command
 from .launch_options import GUIDE as LAUNCH_OPTIONS_GUIDE, WARNING as LAUNCH_OPTIONS_WARNING, import_script
 from .steam_bridge import request_import
 from . import __version__
+from .updater import Updater, RELEASES_URL, installation_destination
 
 
+class UpdateWorker(QThread):
+    ready = Signal(object)
+    failed = Signal(str)
+    progress = Signal(int)
+
+    def __init__(self, updater, release=None, parent=None):
+        super().__init__(parent)
+        self.updater, self.release = updater, release
+
+    def run(self):
+        try:
+            result = (self.updater.download(self.release, self.progress.emit)
+                      if self.release is not None else self.updater.check())
+            self.ready.emit(result)
+        except Exception as exc:
+            self.failed.emit(str(exc))
 
 
 class MessagePanel(QWidget):
@@ -134,6 +151,7 @@ class MainWindow(QMainWindow):
         ("Sistema", "computer"), ("Aplicaciones", "applications-other"),
         ("Proton", "applications-games"), ("Decky", "preferences-plugin"),
         ("Temas", "preferences-desktop-theme"), ("Mantenimiento", "tools-check-spelling"),
+        ("Actualizaciones", "system-software-update"),
     )
 
     def __init__(self, scanner=None, auto_scan=True, installer=None):
@@ -143,6 +161,15 @@ class MainWindow(QMainWindow):
         self.installer = installer or Installer()
         self.install_worker = None
         self.launch_profiles_worker = None
+        self.updater = Updater()
+        self.update_worker = None
+        self.available_release = None
+        self.update_active = False
+        self.update_process = QProcess(self)
+        self.update_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self.update_process.readyReadStandardOutput.connect(self.read_update_output)
+        self.update_process.finished.connect(self.update_process_finished)
+        self.update_process.errorOccurred.connect(self.update_process_error)
         self.install_buttons = {}
         self.install_logs = []
         self.message_panels = []
@@ -166,6 +193,9 @@ class MainWindow(QMainWindow):
         header.addWidget(title)
         header.addStretch()
         header.addWidget(QLabel(f"Versión {__version__} · Instalación bajo demanda"))
+        self.updates_shortcut = QPushButton("Buscar actualizaciones")
+        self.updates_shortcut.clicked.connect(self.open_updates)
+        header.addWidget(self.updates_shortcut)
         self.refresh_button = QPushButton(QIcon.fromTheme("view-refresh"), "Actualizar detección")
         self.refresh_button.clicked.connect(self.start_scan)
         header.addWidget(self.refresh_button)
@@ -205,9 +235,50 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Listo para detectar")
         if auto_scan:
             self.start_scan()
+            QTimer.singleShot(1500, self.check_updates)
 
     def build_section(self, name, layout):
-        if name == "Sistema":
+        if name == "Actualizaciones":
+            group = QGroupBox("Mantén PlayCore al día")
+            content = QVBoxLayout(group)
+            content.addWidget(paragraph(f"Versión instalada: {__version__}"))
+            content.addWidget(paragraph("Busca nuevas versiones estables en el repositorio oficial de GitHub. Tú decides cuándo instalarlas."))
+            self.update_status = paragraph("Todavía no se han buscado actualizaciones.")
+            content.addWidget(self.update_status)
+            self.update_progress = QProgressBar()
+            self.update_progress.setRange(0, 100)
+            self.update_progress.hide()
+            content.addWidget(self.update_progress)
+            buttons = QHBoxLayout()
+            self.check_updates_button = QPushButton("Buscar actualizaciones")
+            self.check_updates_button.clicked.connect(self.check_updates)
+            buttons.addWidget(self.check_updates_button)
+            self.apply_update_button = QPushButton("Descargar e instalar")
+            self.apply_update_button.setEnabled(False)
+            self.apply_update_button.clicked.connect(self.apply_update)
+            buttons.addWidget(self.apply_update_button)
+            releases_button = QPushButton("Ver en GitHub")
+            releases_button.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(
+                self.available_release.url if self.available_release else RELEASES_URL)))
+            buttons.addWidget(releases_button)
+            content.addLayout(buttons)
+            layout.addWidget(group)
+            layout.addWidget(paragraph("La descarga se comprueba con SHA-256. La aplicación se volverá a abrir al terminar. Se conservan tus componentes y la versión anterior."))
+            self.update_install_hint = paragraph("Esta copia se ejecuta desde el código fuente. Instala la nueva versión con el instalador para activar las actualizaciones desde la app.")
+            self.update_install_hint.setVisible(installation_destination() is None)
+            layout.addWidget(self.update_install_hint)
+            notes_group = QGroupBox("Novedades de la versión")
+            notes_layout = QVBoxLayout(notes_group)
+            self.release_notes = QTextBrowser()
+            self.release_notes.setOpenLinks(False)
+            self.release_notes.setPlainText("Aquí aparecerán las novedades cuando haya una actualización disponible.")
+            notes_layout.addWidget(self.release_notes)
+            layout.addWidget(notes_group, 1)
+            self.update_log = QTextBrowser()
+            self.update_log.setMaximumHeight(90)
+            self.update_log.hide()
+            layout.addWidget(self.update_log)
+        elif name == "Sistema":
             group = QGroupBox("Información del equipo")
             form = QFormLayout(group)
             for key in ("Distribución", "Versión", "Hostname", "Kernel", "Escritorio", "Sesión"):
@@ -313,15 +384,114 @@ class MainWindow(QMainWindow):
             self.diagnostics.setAccessibleName("Avisos de diagnóstico")
             layout.addWidget(self.diagnostics, 1)
 
+    def open_updates(self):
+        self.navigation.setCurrentRow(len(self.SECTIONS) - 1)
+        if self.available_release is None:
+            self.check_updates()
 
+    def update_update_buttons(self):
+        if not hasattr(self, "apply_update_button"):
+            return
+        querying = self.update_worker is not None and self.update_worker.isRunning()
+        busy = (self.installation_busy()
+                or (self.worker is not None and self.worker.isRunning())
+                or self.password_process.state() != QProcess.ProcessState.NotRunning)
+        self.check_updates_button.setEnabled(not querying and not self.update_active)
+        self.updates_shortcut.setEnabled(not querying and not self.update_active)
+        self.apply_update_button.setEnabled(
+            self.available_release is not None and installation_destination() is not None
+            and not querying and not busy)
 
+    def check_updates(self):
+        if self.update_active or (self.update_worker is not None and self.update_worker.isRunning()):
+            return
+        self.available_release = None
+        self.apply_update_button.setText("Descargar e instalar")
+        self.updates_shortcut.setText("Buscar actualizaciones")
+        self.release_notes.setPlainText("Consultando las novedades…")
+        self.update_status.setText("Buscando versiones estables en GitHub…")
+        self.update_worker = UpdateWorker(self.updater, parent=self)
+        self.update_worker.ready.connect(self.show_update_release)
+        self.update_worker.failed.connect(self.update_failed)
+        self.update_worker.finished.connect(self.update_update_buttons)
+        self.update_worker.start()
+        self.update_update_buttons()
 
+    def show_update_release(self, release):
+        self.available_release = release
+        if release is None:
+            self.update_status.setText(f"PlayCore está al día. Tienes la versión {__version__}.")
+            self.release_notes.setPlainText("No hay una versión estable más reciente disponible.")
+        else:
+            self.update_status.setText(f"Nueva versión disponible: {release.version} · {release.size / 1024**2:.1f} MiB")
+            self.release_notes.setPlainText(release.notes)
+            self.apply_update_button.setText(f"Actualizar a {release.version}")
+            self.updates_shortcut.setText(f"Nueva versión: {release.version}")
+        self.update_update_buttons()
 
+    def apply_update(self):
+        self.update_update_buttons()
+        if not self.apply_update_button.isEnabled():
+            return
+        release = self.available_release
+        answer = QMessageBox.question(self, "Actualizar PlayCore",
+            f"¿Descargar e instalar PlayCore {release.version}?\n\n"
+            "La aplicación se volverá a abrir al terminar. Tus componentes instalados se conservan.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self.update_active = True
+        self.update_log.clear()
+        self.update_log.hide()
+        self.update_progress.setValue(0)
+        self.update_progress.show()
+        self.update_status.setText("Descargando el instalador y comprobando su integridad…")
+        self.update_worker = UpdateWorker(self.updater, release, self)
+        self.update_worker.progress.connect(self.update_progress.setValue)
+        self.update_worker.ready.connect(self.start_update_installer)
+        self.update_worker.failed.connect(self.update_failed)
+        self.update_worker.finished.connect(self.update_install_buttons)
+        self.update_worker.start()
+        self.refresh_button.setEnabled(False)
+        self.update_install_buttons()
 
+    def start_update_installer(self, path):
+        destination = installation_destination()
+        if destination is None:
+            self.update_failed("No se pudo identificar la instalación actual.")
+            return
+        self.update_status.setText("Descarga verificada. Instalando PlayCore; se abrirá al terminar…")
+        self.update_progress.setRange(0, 0)
+        self.update_process.start("/bin/sh", [str(path), "--update", "--dest", str(destination)])
 
+    def read_update_output(self):
+        text = bytes(self.update_process.readAllStandardOutput()).decode("utf-8", errors="replace")
+        if text.strip():
+            self.update_log.setPlainText(self.update_log.toPlainText() + "\n" + text.rstrip())
 
+    def update_process_error(self, error):
+        if error == QProcess.ProcessError.FailedToStart:
+            self.update_failed("No se pudo iniciar el instalador: " + self.update_process.errorString())
 
+    def update_process_finished(self, code, exit_status):
+        self.read_update_output()
+        self.update_active = False
+        if code == 0 and exit_status == QProcess.ExitStatus.NormalExit:
+            self.close()
+        else:
+            self.update_failed("La actualización no se completó. Puedes seguir usando esta versión y volver a intentarlo.")
 
+    def update_failed(self, message):
+        self.update_active = False
+        self.update_progress.setRange(0, 100)
+        self.update_progress.hide()
+        self.update_status.setText(message)
+        if not self.update_log.document().isEmpty():
+            self.update_log.show()
+        if self.available_release is None:
+            self.release_notes.setPlainText("No se han podido consultar las novedades. Puedes volver a buscar actualizaciones.")
+        self.scan_finished()
 
     def add_install_button(self, layout, name):
         button = QPushButton(QIcon.fromTheme("list-add"), f"Instalar {name}")
@@ -339,7 +509,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(panel)
 
     def installation_busy(self):
-        return ((self.install_worker is not None and self.install_worker.isRunning())
+        return (self.update_active or (self.install_worker is not None and self.install_worker.isRunning())
                 or (self.launch_profiles_worker is not None and self.launch_profiles_worker.isRunning()))
 
     def prepare_launch_profiles(self):
@@ -383,6 +553,7 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def update_install_buttons(self):
+        self.update_update_buttons()
         statuses = {}
         if self.snapshot:
             statuses = {f.name: f.status for f in (*self.snapshot.applications, *self.snapshot.decky,
@@ -557,6 +728,10 @@ class MainWindow(QMainWindow):
         self.update_install_buttons()
 
     def closeEvent(self, event):
+        if self.update_worker is not None and self.update_worker.isRunning():
+            self.statusBar().showMessage("Espera a que termine la consulta o descarga de la actualización…")
+            event.ignore()
+            return
         if self.password_process.state() != QProcess.ProcessState.NotRunning:
             self.statusBar().showMessage("Termina y cierra la terminal de contraseña antes de cerrar PlayCore.")
             event.ignore()
@@ -569,4 +744,5 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Espera a que termine la lectura antes de cerrar…")
             event.ignore()
             return
+        self.updater.cleanup()
         event.accept()

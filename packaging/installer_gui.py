@@ -5,7 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt
+from PySide6.QtCore import QProcess, QTimer, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QDialog, QHBoxLayout, QLabel, QMessageBox, QPlainTextEdit,
@@ -21,20 +21,22 @@ def load_core(bundle):
 
 
 class InstallerWindow(QDialog):
-    def __init__(self, bundle, destination=None, shortcuts=True):
+    def __init__(self, bundle, destination=None, shortcuts=True, update=False):
         super().__init__()
         self.bundle = Path(bundle)
-        manifest = self.bundle / "manifest.json"
-        self.version = json.loads(manifest.read_text())["version"] if manifest.is_file() else "1.1.0"
         self.destination = destination or Path.home() / ".local/share/playcore"
         self.shortcuts = shortcuts
+        self.update = update
+        self.update_completed = False
+        manifest = self.bundle / "manifest.json"
+        self.version = json.loads(manifest.read_text())["version"] if manifest.is_file() else ""
         self.installed_path = None
         self.process = QProcess(self)
         self.process.readyReadStandardOutput.connect(self.read_stdout)
         self.process.readyReadStandardError.connect(self.read_stderr)
         self.process.finished.connect(self.install_finished)
         self.process.errorOccurred.connect(self.process_error)
-        self.setWindowTitle(f"Instalar PlayCore {self.version}")
+        self.setWindowTitle(("Actualizar" if update else "Instalar") + f" PlayCore {self.version}")
         self.setWindowIcon(QIcon.fromTheme("applications-games"))
         self.resize(650, 340)
         layout = QVBoxLayout(self)
@@ -86,10 +88,15 @@ class InstallerWindow(QDialog):
         self.open_button.clicked.connect(self.open_application)
         buttons.addWidget(self.open_button)
         self.install_button = QPushButton("Instalar PlayCore")
+        if update:
+            self.install_button.setText("Actualizar PlayCore")
+            self.status.setText("Actualizando PlayCore. La aplicación se volverá a abrir al terminar.")
         self.install_button.setDefault(True)
         self.install_button.clicked.connect(self.start_install)
         buttons.addWidget(self.install_button)
         layout.addLayout(buttons)
+        if update:
+            QTimer.singleShot(0, self.start_install)
 
     def toggle_details(self, visible):
         self.log.setVisible(visible)
@@ -134,6 +141,8 @@ class InstallerWindow(QDialog):
             self.open_button.setEnabled(True)
             self.install_button.setText("Instalado")
             self.install_button.setEnabled(False)
+            if self.update:
+                self.open_application()
         else:
             self.fail("No se completó la instalación. Abre los mensajes para consultar el motivo.")
 
@@ -155,6 +164,9 @@ class InstallerWindow(QDialog):
         ok, _ = QProcess.startDetached(str(self.installed_path / "abrir-playcore.sh"), [])
         if not ok:
             QMessageBox.warning(self, "PlayCore", "La instalación terminó, pero no se pudo abrir la aplicación.")
+        elif self.update:
+            self.update_completed = True
+            self.close()
 
     def closeEvent(self, event):
         if self.process.state() != QProcess.ProcessState.NotRunning:
@@ -167,9 +179,11 @@ def main(bundle, arguments=None):
     parser = argparse.ArgumentParser(description="Instalador gráfico de PlayCore")
     parser.add_argument("--dest", type=Path)
     parser.add_argument("--no-shortcuts", action="store_true")
+    parser.add_argument("--update", action="store_true", help="Instalar y volver a abrir tras la confirmación desde PlayCore")
     args = parser.parse_args(arguments)
     app = QApplication.instance() or QApplication(["Instalar PlayCore"])
     app.setApplicationName("Instalar PlayCore")
-    window = InstallerWindow(bundle, args.dest, not args.no_shortcuts)
+    window = InstallerWindow(bundle, args.dest, not args.no_shortcuts, args.update)
     window.show()
-    return app.exec()
+    result = app.exec()
+    return (0 if window.update_completed else 1) if args.update else result

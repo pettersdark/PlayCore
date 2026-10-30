@@ -10,6 +10,8 @@ from PySide6.QtWidgets import QApplication
 
 from playcore.detection import Scanner
 from playcore.ui import MainWindow
+from playcore.updater import parse_release
+from tests.test_updater import release_data
 
 
 class GuiTests(unittest.TestCase):
@@ -25,12 +27,12 @@ class GuiTests(unittest.TestCase):
         self.window = MainWindow(self.scanner, auto_scan=False)
         self.addCleanup(self.window.close)
 
-    def test_six_sections_and_inventory(self):
+    def test_seven_sections_and_inventory(self):
         self.window.render_snapshot(self.scanner.scan())
-        self.assertEqual(self.window.navigation.count(), 6)
+        self.assertEqual(self.window.navigation.count(), 7)
         self.assertEqual(self.window.tables["Temas"].rowCount(), 15)
         self.assertEqual(self.window.tables["Decky"].rowCount(), 5)
-        for index in range(6):
+        for index in range(7):
             self.window.navigation.setCurrentRow(index)
             self.assertEqual(self.window.pages.currentIndex(), index)
 
@@ -46,8 +48,42 @@ class GuiTests(unittest.TestCase):
         self.window.render_snapshot(self.scanner.scan())
         self.assertEqual(self.window.profile_combo.currentData(), "Soft Play.profile")
 
+    def test_update_check_uses_worker_and_exposes_new_release(self):
+        release = parse_release(release_data())
+        with patch.object(self.window.updater, "check", return_value=release), patch(
+                "playcore.ui.installation_destination", return_value=self.home):
+            loop = QEventLoop()
+            self.window.check_updates_button.click()
+            self.window.update_worker.finished.connect(loop.quit)
+            QTimer.singleShot(5000, loop.quit)
+            loop.exec()
+            self.app.processEvents()
+            self.assertIn("1.3.0", self.window.update_status.text())
+            self.assertTrue(self.window.apply_update_button.isEnabled())
+            self.assertEqual(self.window.release_notes.toPlainText(), "Novedades de prueba")
+            self.assertIn("1.3.0", self.window.updates_shortcut.text())
 
+    def test_update_download_error_preserves_current_app_and_allows_retry(self):
+        from PySide6.QtWidgets import QMessageBox
+        self.window.available_release = parse_release(release_data())
+        with patch("playcore.ui.installation_destination", return_value=self.home), patch(
+                "playcore.ui.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes), patch.object(
+                self.window.updater, "download", side_effect=ValueError("SHA-256 incorrecto")):
+            loop = QEventLoop()
+            self.window.apply_update()
+            self.window.update_worker.finished.connect(loop.quit)
+            QTimer.singleShot(5000, loop.quit)
+            loop.exec()
+            self.app.processEvents()
+            self.assertIn("SHA-256", self.window.update_status.text())
+            self.assertTrue(self.window.apply_update_button.isEnabled())
+            self.assertFalse(self.window.update_active)
+            self.assertEqual(self.window.update_process.state(), self.window.update_process.ProcessState.NotRunning)
 
+    def test_source_copy_checks_but_does_not_install_updates(self):
+        self.window.show_update_release(parse_release(release_data()))
+        self.assertFalse(self.window.apply_update_button.isEnabled())
+        self.assertIn("código fuente", self.window.update_install_hint.text())
 
     def test_proton_latest_remains_available_with_an_older_version(self):
         (self.home / "etc").mkdir()

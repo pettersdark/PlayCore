@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QApplication
 from playcore.catalog import CSS_DEPENDENCIES
 from playcore.models import Finding, Snapshot, SystemInfo
 from playcore.ui import MainWindow
+from playcore.updater import Release
 
 
 def demo_snapshot():
@@ -71,6 +72,23 @@ def capture(output):
     window.message_panels[2].toggle.setChecked(True)
     app.processEvents()
     assert window.grab().save(str(output / "mensajes.png"))
+    window.navigation.setCurrentRow(6)
+    window.statusBar().showMessage("Vista de demostración del actualizador")
+    window.show_update_release(None)
+    app.processEvents()
+    assert window.grab().save(str(output / "actualizaciones-al-dia.png"))
+    # Versión futura simulada, mostrada como ejemplo de la interfaz instalada.
+    release = Release("1.3.0", "Ejemplo de novedades · versión de demostración\n\n"
+                      "• Mejoras de estabilidad y correcciones.\n"
+                      "• Actualización desde PlayCore conservando tus componentes.\n\n"
+                      "Esta versión es un ejemplo para la captura; no está publicada.",
+                      "https://github.com/pettersdark/PlayCore/releases/tag/v1.3.0",
+                      "PlayCore-1.3.0-Bazzite-x86_64.run", "", "", 85 * 1024**2)
+    with patch("playcore.ui.installation_destination", return_value=Path("/home/gamer/.local/share/playcore")):
+        window.update_install_hint.hide()
+        window.show_update_release(release)
+        app.processEvents()
+        assert window.grab().save(str(output / "actualizaciones.png"))
     window.close()
 
     spec = importlib.util.spec_from_file_location("screenshot_installer_gui", ROOT / "packaging/installer_gui.py")
@@ -86,5 +104,5 @@ def capture(output):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=ROOT / "docs/images/v1.1")
+    parser.add_argument("--output", type=Path, default=ROOT / "docs/images/v1.2")
     capture(parser.parse_args().output.resolve())

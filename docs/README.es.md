@@ -1,6 +1,31 @@
-# PlayCore 1.1
+# PlayCore 1.2
 
-![PlayCore: sistema y estado de la cuenta, con datos de demostración](images/v1.1/sistema.png)
+## Actualizador de PlayCore (1.2.0)
+
+La nueva sección **Actualizaciones** consulta la API pública de GitHub Releases de
+`pettersdark/PlayCore` en segundo plano al abrir la aplicación y al pulsar Buscar.
+Solo acepta versiones estables `vMAJOR.MINOR.PATCH` superiores a la instalada.
+Requiere el instalador `.run` de Linux x86_64 y su `.sha256` en esa misma release.
+Comprueba el tamaño, el SHA-256 y el digest de GitHub cuando existe; una descarga
+incompleta, corrupta o ajena al repositorio oficial nunca se ejecuta.
+
+Al confirmar la actualización, ejecuta el instalador con `--update --dest …`.
+Este modo instala sin otro clic y abre la versión nueva. Solo entonces se cierra la
+ventana anterior. Si falla, la ventana actual sigue disponible y permite reintentar.
+No modifica componentes, perfiles ni versiones anteriores. La instalación es por
+usuario y no necesita sudo. Se bloquean otras instalaciones y el cierre durante
+la descarga e instalación para evitar interrupciones.
+
+La 1.0.0 necesita una instalación manual de 1.2.0. Las copias del código fuente
+permiten buscar actualizaciones pero desactivan la instalación desde la app.
+El paquete nuevo se prepara en `entrega/PlayCore-1.2.0-Bazzite-x86_64.run`.
+Para futuras releases, incrementa `playcore/__init__.py` y `pyproject.toml`, construye
+el paquete y publica la etiqueta correspondiente con el `.run` y `.run.sha256`.
+No reutilices el número de una versión publicada.
+
+![Actualizador con una versión futura simulada, sin publicar](images/v1.2/actualizaciones.png)
+
+![PlayCore: sistema y estado de la cuenta, con datos de demostración](images/v1.2/sistema.png)
 
 [Ver todas las capturas](../README.md#screenshots). Son capturas de la interfaz real
 con datos de demostración; no muestran información personal ni instalaciones reales.
@@ -197,7 +222,7 @@ anterior fue probado por el usuario.
 
 ## Paquete para probar en otro equipo
 
-El fichero principal es `entrega/PlayCore-1.1.0-Bazzite-x86_64.run`. Cópialo a Bazzite
+El fichero principal es `entrega/PlayCore-1.2.0-Bazzite-x86_64.run`. Cópialo a Bazzite
 y ábrelo con doble clic: se abre un asistente con **Instalar PlayCore** y, al terminar,
 **Abrir PlayCore**. No hay que abrir una terminal ni escribir comandos. Si el navegador
 o el USB elimina el permiso de ejecución, actívalo gráficamente en **Propiedades →
@@ -231,7 +256,7 @@ en carpetas temporales, sin instalar componentes de juego ni cambiar contraseña
 ## Distribución en GitHub
 
 El repositorio de destino es [pettersdark/PlayCore](https://github.com/pettersdark/PlayCore).
-La descarga para el usuario final es el fichero `.run` de la [Release 1.1.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.1.0).
+La descarga para el usuario final es el fichero `.run` de la [Release 1.2.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0).
 Consulta [las instrucciones en ambos idiomas](../README.md) y [el procedimiento de publicación](PUBLICAR_GITHUB.md).
 
 ## Fuentes del catálogo

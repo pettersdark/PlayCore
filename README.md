@@ -1,4 +1,4 @@
-# PlayCore 1.1
+# PlayCore 1.2
 
 **Español** · [English](#english) · [Documentación técnica / Technical documentation](docs/README.es.md)
 
@@ -6,32 +6,43 @@ Panel de escritorio en Python y PySide6 para **SteamOS y Bazzite con KDE Plasma*
 Detecta el sistema y los componentes instalados y permite instalar herramientas de juego
 desde una interfaz gráfica. La interfaz de la aplicación está en español.
 
-![PlayCore 1.1: Proton-CachyOS y Proton-GE / Proton-CachyOS and Proton-GE](docs/images/v1.1/proton.png)
+![PlayCore 1.2: Proton-CachyOS y Proton-GE / Proton-CachyOS and Proton-GE](docs/images/v1.2/proton.png)
 
 *Interfaz real con datos de demostración. / Real interface with demonstration data.*
 
-[Ver capturas / View screenshots](#screenshots) · [Descargar / Download](https://github.com/pettersdark/PlayCore/releases/tag/v1.1.0)
+[Ver capturas / View screenshots](#screenshots) · [Descargar / Download](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0)
 
 ## Español
 
-### Novedades de 1.1.0
+### Actualizaciones desde la aplicación (1.2.0)
 
-Proton-CachyOS y Proton-GE añaden el modo **Latest**, reconocible por ProtonPlus.
-En **Decky → Instalar perfiles FSR/OptiScaler**, PlayCore envía automáticamente los
-perfiles OptiScaler, FSR 4 y el combinado a Steam; revisa y confirma el diálogo de
-Decky. No se activan globalmente ni se instala OptiScaler dentro de los juegos.
-[Notas completas](RELEASE_NOTES.md) · [Guía de perfiles](docs/DECKY_LAUNCH_OPTIONS.md)
+PlayCore consulta las versiones estables de GitHub al abrirse. En **Actualizaciones**
+puedes buscar de nuevo, leer las novedades y pulsar **Actualizar a…**. Tras confirmar,
+descarga el instalador oficial, comprueba el SHA-256, instala la nueva versión y la abre.
+La ventana anterior se cierra después de abrir la nueva; si falla, puedes seguir usándola.
+Se conservan los componentes y las versiones anteriores de PlayCore.
 
+Quienes tengan 1.0.0 o 1.1.0 deben instalar 1.2.0 manualmente una vez. La actualización desde
+la app requiere una copia instalada con el instalador; las copias del código fuente
+pueden consultar las novedades. Desde 1.2.0 podrás instalar
+1.3.0 y posteriores desde la aplicación cuando se publiquen.
+
+![Actualizaciones: ejemplo de una versión futura, no publicada](docs/images/v1.2/actualizaciones.png)
+
+Para publicar futuras actualizaciones, crea una release estable con una etiqueta como
+`v1.3.0` y adjunta `PlayCore-1.3.0-Bazzite-x86_64.run` y su `.run.sha256`.
+Las notas de esa release aparecerán en la aplicación. El constructor toma la versión
+de `playcore/__init__.py`; mantenla sincronizada con `pyproject.toml`.
 
 ### Descargar e instalar, sin terminal
 
-1. Abre [la Release 1.1.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.1.0).
-2. Descarga [PlayCore-1.1.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.1.0/PlayCore-1.1.0-Bazzite-x86_64.run).
+1. Abre [la Release 1.2.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0).
+2. Descarga [PlayCore-1.2.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.2.0/PlayCore-1.2.0-Bazzite-x86_64.run).
 3. Haz doble clic en el fichero. Si Dolphin lo pregunta, elige **Ejecutar**.
 4. Si el navegador ha quitado el permiso de ejecución: botón derecho → **Propiedades → Permisos → Es ejecutable**. Vuelve a abrirlo.
 5. Pulsa **Instalar PlayCore** y, al terminar, **Abrir PlayCore**. También aparecerá en el menú de aplicaciones.
 
-![Asistente gráfico de instalación de PlayCore 1.1](docs/images/v1.1/instalador.png)
+![Asistente gráfico de instalación de PlayCore 1.2](docs/images/v1.2/instalador.png)
 
 *Así se abre el instalador antes de pulsar Instalar PlayCore. La ruta mostrada es de demostración.*
 
@@ -53,6 +64,7 @@ Este fichero no sirve para Windows ni ARM. Breeze depende de la integración Qt 
 | Decky | Decky Loader, SteamGridDB, HLTB, CSS Loader y Decky Launch Options |
 | Temas | Machine Ready TV, sus perfiles y las 14 dependencias CSS |
 | Mantenimiento | Espacio libre y avisos de detección |
+| Actualizaciones | Versiones estables, novedades, descarga verificada e instalación de PlayCore |
 
 Cada instalación comienza al pulsar su botón. El resumen final permanece visible;
 el registro se abre y cierra con **Mostrar mensajes / Ocultar mensajes**.
@@ -94,14 +106,15 @@ el catálogo completo no se ha verificado en todos los dispositivos.
 
 ## English
 
-### New in 1.1.0
+### In-app updates (1.2.0)
 
-Proton-CachyOS and Proton-GE now offer **Latest** mode, recognized by ProtonPlus.
-In **Decky → Instalar perfiles FSR/OptiScaler**, PlayCore automatically sends the
-OptiScaler, FSR 4, and combined profiles to Steam. Review and confirm Decky's dialog.
-Profiles are not globally enabled; this action does not install OptiScaler into games.
-[Full release notes](RELEASE_NOTES.md)
-
+PlayCore checks stable GitHub releases on startup. Open **Actualizaciones** to check
+again, read release notes and confirm an update. It verifies the official installer's
+size and SHA-256, installs it and reopens PlayCore, preserving existing components
+and previous app versions. Failed updates leave the current app available.
+Users on 1.0.0 or 1.1.0 must install 1.2.0 manually once. Source checkouts can check releases;
+in-app installation requires a copy installed with the graphical installer.
+Future releases, including 1.3.0, can then be installed from the app when published.
 
 PlayCore is a **Python/PySide6 desktop application for SteamOS and Bazzite with KDE Plasma**.
 It detects your system and installed components and provides explicit installation actions.
@@ -109,13 +122,13 @@ The application UI is currently in Spanish; installation and usage instructions 
 
 ### Download and install without a terminal
 
-1. Open [Release 1.1.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.1.0).
-2. Download [PlayCore-1.1.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.1.0/PlayCore-1.1.0-Bazzite-x86_64.run).
+1. Open [Release 1.2.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0).
+2. Download [PlayCore-1.2.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.2.0/PlayCore-1.2.0-Bazzite-x86_64.run).
 3. Double-click the file and choose **Execute** if Dolphin asks.
 4. If the download lost its executable permission: right-click → **Properties → Permissions → Is executable**, then open it again.
 5. Click **Instalar PlayCore** (Install PlayCore), then **Abrir PlayCore** (Open PlayCore). A launcher is also added to your application menu.
 
-![PlayCore 1.1 graphical installation wizard](docs/images/v1.1/instalador.png)
+![PlayCore 1.2 graphical installation wizard](docs/images/v1.2/instalador.png)
 
 *The installer before clicking Install PlayCore. The displayed destination uses demonstration data.*
 
@@ -179,10 +192,10 @@ The user has tested the installer; every catalog component has not been validate
 
 ## Capturas / Screenshots
 
-Capturas de los widgets reales de PlayCore 1.1 con datos de demostración, sin datos
+Capturas de los widgets reales de PlayCore 1.2 con datos de demostración, sin datos
 personales ni instalaciones reales. El aspecto puede variar según la integración Qt de KDE.
 
-Screenshots of the actual PlayCore 1.1 widgets using demonstration data, without personal
+Screenshots of the actual PlayCore 1.2 widgets using demonstration data, without personal
 information or live installations. Appearance may vary with your KDE/Qt integration.
 
 <details>
@@ -190,19 +203,19 @@ information or live installations. Appearance may vary with your KDE/Qt integrat
 
 | Sistema / System | Aplicaciones / Applications |
 | --- | --- |
-| [![Información del sistema y contraseña / System and account information](docs/images/v1.1/sistema.png)](docs/images/v1.1/sistema.png) | [![Heroic y ProtonPlus / Heroic and ProtonPlus](docs/images/v1.1/aplicaciones.png)](docs/images/v1.1/aplicaciones.png) |
+| [![Información del sistema y contraseña / System and account information](docs/images/v1.2/sistema.png)](docs/images/v1.2/sistema.png) | [![Heroic y ProtonPlus / Heroic and ProtonPlus](docs/images/v1.2/aplicaciones.png)](docs/images/v1.2/aplicaciones.png) |
 
 | Proton | Decky |
 | --- | --- |
-| [![Proton-CachyOS y Proton-GE](docs/images/v1.1/proton.png)](docs/images/v1.1/proton.png) | [![Decky Loader y sus cuatro plugins / Decky Loader and four plugins](docs/images/v1.1/decky.png)](docs/images/v1.1/decky.png) |
+| [![Proton-CachyOS y Proton-GE](docs/images/v1.2/proton.png)](docs/images/v1.2/proton.png) | [![Decky Loader y sus cuatro plugins / Decky Loader and four plugins](docs/images/v1.2/decky.png)](docs/images/v1.2/decky.png) |
 
 | Temas / Themes | Mantenimiento / Maintenance |
 | --- | --- |
-| [![Machine Ready TV y selección manual del perfil / Machine Ready TV and manual profile selection](docs/images/v1.1/temas.png)](docs/images/v1.1/temas.png) | [![Espacio libre y diagnóstico / Free space and diagnostics](docs/images/v1.1/mantenimiento.png)](docs/images/v1.1/mantenimiento.png) |
+| [![Machine Ready TV y selección manual del perfil / Machine Ready TV and manual profile selection](docs/images/v1.2/temas.png)](docs/images/v1.2/temas.png) | [![Espacio libre y diagnóstico / Free space and diagnostics](docs/images/v1.2/mantenimiento.png)](docs/images/v1.2/mantenimiento.png) |
 
 **Mensajes desplegables / Collapsible messages**
 
-![Ejemplo de instalación completada con el registro abierto / Installation-completed example with expanded log](docs/images/v1.1/mensajes.png)
+![Ejemplo de instalación completada con el registro abierto / Installation-completed example with expanded log](docs/images/v1.2/mensajes.png)
 
 </details>
 

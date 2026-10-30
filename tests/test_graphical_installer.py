@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtCore import QProcess
@@ -43,3 +44,21 @@ class GraphicalInstallerTests(unittest.TestCase):
             self.assertFalse(window.open_button.isEnabled())
             self.assertIn("Fallo de prueba", window.log.toPlainText())
             window.close()
+
+    def test_update_reopens_only_after_success_and_preserves_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            bundle = Path(temp)
+            launcher = bundle / "abrir-playcore.sh"
+            launcher.touch()
+            for opened in (True, False):
+                window = gui.InstallerWindow(bundle, bundle, update=True)
+                # Consume el arranque programado, sustituyendo solo el proceso real.
+                with patch.object(window.process, "start"):
+                    self.app.processEvents()
+                with patch.object(gui, "load_core") as core, patch.object(
+                        gui.QProcess, "startDetached", return_value=(opened, 123)), patch.object(gui.QMessageBox, "warning"):
+                    core.return_value.installation_path.return_value = bundle
+                    window.install_finished(0, QProcess.ExitStatus.NormalExit)
+                self.assertEqual(window.update_completed, opened)
+                self.assertTrue(window.open_button.isEnabled())
+                window.close()
