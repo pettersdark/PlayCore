@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PySide6.QtCore import QProcess
+from PySide6.QtCore import QProcess, QSettings
 from PySide6.QtWidgets import QApplication
 
 spec = importlib.util.spec_from_file_location("playcore_graphical_installer", Path(__file__).resolve().parents[1] / "packaging/installer_gui.py")
@@ -22,7 +22,8 @@ class GraphicalInstallerTests(unittest.TestCase):
     def test_opening_installer_does_not_start_installation(self):
         with tempfile.TemporaryDirectory() as temp:
             target = Path(temp) / "destination"
-            window = gui.InstallerWindow(Path(temp), target, shortcuts=False)
+            settings = QSettings(str(Path(temp) / "ui.ini"), QSettings.Format.IniFormat)
+            window = gui.InstallerWindow(Path(temp), target, shortcuts=False, settings=settings)
             self.assertEqual(window.process.state(), QProcess.ProcessState.NotRunning)
             self.assertFalse(target.exists())
             self.assertTrue(window.install_button.isEnabled())
@@ -36,7 +37,8 @@ class GraphicalInstallerTests(unittest.TestCase):
 
     def test_failed_installation_keeps_error_and_allows_retry(self):
         with tempfile.TemporaryDirectory() as temp:
-            window = gui.InstallerWindow(Path(temp), Path(temp) / "destination", shortcuts=False)
+            settings = QSettings(str(Path(temp) / "ui.ini"), QSettings.Format.IniFormat)
+            window = gui.InstallerWindow(Path(temp), Path(temp) / "destination", shortcuts=False, settings=settings)
             window.append_output("Fallo de prueba")
             window.install_finished(1, QProcess.ExitStatus.NormalExit)
             self.assertIn("No se completó", window.status.text())
@@ -51,7 +53,8 @@ class GraphicalInstallerTests(unittest.TestCase):
             launcher = bundle / "abrir-playcore.sh"
             launcher.touch()
             for opened in (True, False):
-                window = gui.InstallerWindow(bundle, bundle, update=True)
+                settings = QSettings(str(bundle / "ui.ini"), QSettings.Format.IniFormat)
+                window = gui.InstallerWindow(bundle, bundle, update=True, settings=settings)
                 # Consume el arranque programado, sustituyendo solo el proceso real.
                 with patch.object(window.process, "start"):
                     self.app.processEvents()

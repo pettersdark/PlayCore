@@ -1,18 +1,32 @@
-# PlayCore 1.2
+# PlayCore 1.3
 
 **Español** · [English](#english) · [Documentación técnica / Technical documentation](docs/README.es.md)
 
 Panel de escritorio en Python y PySide6 para **SteamOS y Bazzite con KDE Plasma**.
 Detecta el sistema y los componentes instalados y permite instalar herramientas de juego
-desde una interfaz gráfica. La interfaz de la aplicación está en español.
+desde una interfaz gráfica. La interfaz está disponible en español e inglés, con cambio de idioma al instante.
 
-![PlayCore 1.2: Proton-CachyOS y Proton-GE / Proton-CachyOS and Proton-GE](docs/images/v1.2/proton.png)
+![PlayCore 1.3: Proton-CachyOS y Proton-GE / Proton-CachyOS and Proton-GE](docs/images/v1.3/es/proton.png)
 
 *Interfaz real con datos de demostración. / Real interface with demonstration data.*
 
-[Ver capturas / View screenshots](#screenshots) · [Descargar / Download](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0)
+[Ver capturas / View screenshots](#screenshots) · [Descargar / Download](https://github.com/pettersdark/PlayCore/releases/tag/v1.3.0)
 
 ## Español
+
+### Novedades de 1.3.0 · Idioma de la aplicación
+
+El selector **Español / English** está arriba a la derecha. Cambia las secciones,
+botones, estados, mensajes y diálogos al instante, sin reiniciar ni perder la sección
+abierta o las selecciones. La preferencia queda guardada y el instalador utiliza el
+mismo idioma. Los nombres de componentes, rutas, comandos y notas originales de las
+releases se conservan.
+
+![PlayCore 1.3.0 en español](docs/images/v1.3/es/proton.png)
+
+Si tienes la 1.2.0, instala la 1.3.0 desde **Actualizaciones**. Desde 1.0.0
+o 1.1.0, descarga e instala manualmente la nueva versión una vez.
+
 
 ### Actualizaciones desde la aplicación (1.2.0)
 
@@ -22,27 +36,27 @@ descarga el instalador oficial, comprueba el SHA-256, instala la nueva versión 
 La ventana anterior se cierra después de abrir la nueva; si falla, puedes seguir usándola.
 Se conservan los componentes y las versiones anteriores de PlayCore.
 
-Quienes tengan 1.0.0 o 1.1.0 deben instalar 1.2.0 manualmente una vez. La actualización desde
+Quienes tengan 1.0.0 o 1.1.0 deben instalar 1.3.0 manualmente una vez. La actualización desde
 la app requiere una copia instalada con el instalador; las copias del código fuente
 pueden consultar las novedades. Desde 1.2.0 podrás instalar
-1.3.0 y posteriores desde la aplicación cuando se publiquen.
+las siguientes versiones desde la aplicación cuando se publiquen.
 
-![Actualizaciones: ejemplo de una versión futura, no publicada](docs/images/v1.2/actualizaciones.png)
+![Actualizaciones: ejemplo de una versión futura, no publicada](docs/images/v1.3/es/actualizaciones.png)
 
 Para publicar futuras actualizaciones, crea una release estable con una etiqueta como
-`v1.3.0` y adjunta `PlayCore-1.3.0-Bazzite-x86_64.run` y su `.run.sha256`.
+`v1.4.0` y adjunta `PlayCore-1.4.0-Bazzite-x86_64.run` y su `.run.sha256`.
 Las notas de esa release aparecerán en la aplicación. El constructor toma la versión
 de `playcore/__init__.py`; mantenla sincronizada con `pyproject.toml`.
 
 ### Descargar e instalar, sin terminal
 
-1. Abre [la Release 1.2.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0).
-2. Descarga [PlayCore-1.2.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.2.0/PlayCore-1.2.0-Bazzite-x86_64.run).
+1. Abre [la Release 1.3.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.3.0).
+2. Descarga [PlayCore-1.3.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.3.0/PlayCore-1.3.0-Bazzite-x86_64.run).
 3. Haz doble clic en el fichero. Si Dolphin lo pregunta, elige **Ejecutar**.
 4. Si el navegador ha quitado el permiso de ejecución: botón derecho → **Propiedades → Permisos → Es ejecutable**. Vuelve a abrirlo.
 5. Pulsa **Instalar PlayCore** y, al terminar, **Abrir PlayCore**. También aparecerá en el menú de aplicaciones.
 
-![Asistente gráfico de instalación de PlayCore 1.2](docs/images/v1.2/instalador.png)
+![Asistente gráfico de instalación de PlayCore 1.3](docs/images/v1.3/es/instalador.png)
 
 *Así se abre el instalador antes de pulsar Instalar PlayCore. La ruta mostrada es de demostración.*
 
@@ -106,29 +120,43 @@ el catálogo completo no se ha verificado en todos los dispositivos.
 
 ## English
 
+### New in 1.3.0 · Application language
+
+Use **Español / English** in the top-right corner. Sections, buttons, status labels,
+messages, and dialogs change immediately, without restarting or losing the open
+section or current selections. The choice is saved and the installer follows the
+same preference. Component names, paths, commands, and original release notes are
+preserved.
+
+![PlayCore 1.3.0 in English](docs/images/v1.3/en/proton.png)
+
+On 1.2.0, install 1.3.0 from **Actualizaciones / Updates**. On 1.0.0 or 1.1.0,
+download and install the new version manually once.
+
+
 ### In-app updates (1.2.0)
 
 PlayCore checks stable GitHub releases on startup. Open **Actualizaciones** to check
 again, read release notes and confirm an update. It verifies the official installer's
 size and SHA-256, installs it and reopens PlayCore, preserving existing components
 and previous app versions. Failed updates leave the current app available.
-Users on 1.0.0 or 1.1.0 must install 1.2.0 manually once. Source checkouts can check releases;
+Users on 1.0.0 or 1.1.0 must install 1.3.0 manually once. Source checkouts can check releases;
 in-app installation requires a copy installed with the graphical installer.
-Future releases, including 1.3.0, can then be installed from the app when published.
+Future releases can then be installed from the app when published.
 
 PlayCore is a **Python/PySide6 desktop application for SteamOS and Bazzite with KDE Plasma**.
 It detects your system and installed components and provides explicit installation actions.
-The application UI is currently in Spanish; installation and usage instructions are provided here in both languages.
+The application UI supports Spanish and English; installation and usage instructions are provided here in both languages.
 
 ### Download and install without a terminal
 
-1. Open [Release 1.2.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0).
-2. Download [PlayCore-1.2.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.2.0/PlayCore-1.2.0-Bazzite-x86_64.run).
+1. Open [Release 1.3.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.3.0).
+2. Download [PlayCore-1.3.0-Bazzite-x86_64.run](https://github.com/pettersdark/PlayCore/releases/download/v1.3.0/PlayCore-1.3.0-Bazzite-x86_64.run).
 3. Double-click the file and choose **Execute** if Dolphin asks.
 4. If the download lost its executable permission: right-click → **Properties → Permissions → Is executable**, then open it again.
 5. Click **Instalar PlayCore** (Install PlayCore), then **Abrir PlayCore** (Open PlayCore). A launcher is also added to your application menu.
 
-![PlayCore 1.2 graphical installation wizard](docs/images/v1.2/instalador.png)
+![PlayCore 1.3 graphical installation wizard](docs/images/v1.3/en/instalador.png)
 
 *The installer before clicking Install PlayCore. The displayed destination uses demonstration data.*
 
@@ -192,10 +220,10 @@ The user has tested the installer; every catalog component has not been validate
 
 ## Capturas / Screenshots
 
-Capturas de los widgets reales de PlayCore 1.2 con datos de demostración, sin datos
+Capturas de los widgets reales de PlayCore 1.3 con datos de demostración, sin datos
 personales ni instalaciones reales. El aspecto puede variar según la integración Qt de KDE.
 
-Screenshots of the actual PlayCore 1.2 widgets using demonstration data, without personal
+Screenshots of the actual PlayCore 1.3 widgets using demonstration data, without personal
 information or live installations. Appearance may vary with your KDE/Qt integration.
 
 <details>
@@ -203,19 +231,19 @@ information or live installations. Appearance may vary with your KDE/Qt integrat
 
 | Sistema / System | Aplicaciones / Applications |
 | --- | --- |
-| [![Información del sistema y contraseña / System and account information](docs/images/v1.2/sistema.png)](docs/images/v1.2/sistema.png) | [![Heroic y ProtonPlus / Heroic and ProtonPlus](docs/images/v1.2/aplicaciones.png)](docs/images/v1.2/aplicaciones.png) |
+| [![Información del sistema y contraseña / System and account information](docs/images/v1.3/es/sistema.png)](docs/images/v1.3/es/sistema.png) | [![Heroic y ProtonPlus / Heroic and ProtonPlus](docs/images/v1.3/es/aplicaciones.png)](docs/images/v1.3/es/aplicaciones.png) |
 
 | Proton | Decky |
 | --- | --- |
-| [![Proton-CachyOS y Proton-GE](docs/images/v1.2/proton.png)](docs/images/v1.2/proton.png) | [![Decky Loader y sus cuatro plugins / Decky Loader and four plugins](docs/images/v1.2/decky.png)](docs/images/v1.2/decky.png) |
+| [![Proton-CachyOS y Proton-GE](docs/images/v1.3/es/proton.png)](docs/images/v1.3/es/proton.png) | [![Decky Loader y sus cuatro plugins / Decky Loader and four plugins](docs/images/v1.3/es/decky.png)](docs/images/v1.3/es/decky.png) |
 
 | Temas / Themes | Mantenimiento / Maintenance |
 | --- | --- |
-| [![Machine Ready TV y selección manual del perfil / Machine Ready TV and manual profile selection](docs/images/v1.2/temas.png)](docs/images/v1.2/temas.png) | [![Espacio libre y diagnóstico / Free space and diagnostics](docs/images/v1.2/mantenimiento.png)](docs/images/v1.2/mantenimiento.png) |
+| [![Machine Ready TV y selección manual del perfil / Machine Ready TV and manual profile selection](docs/images/v1.3/es/temas.png)](docs/images/v1.3/es/temas.png) | [![Espacio libre y diagnóstico / Free space and diagnostics](docs/images/v1.3/es/mantenimiento.png)](docs/images/v1.3/es/mantenimiento.png) |
 
 **Mensajes desplegables / Collapsible messages**
 
-![Ejemplo de instalación completada con el registro abierto / Installation-completed example with expanded log](docs/images/v1.2/mensajes.png)
+![Ejemplo de instalación completada con el registro abierto / Installation-completed example with expanded log](docs/images/v1.3/es/mensajes.png)
 
 </details>
 

@@ -10,7 +10,7 @@ from playcore.updater import (Updater, check_latest, installation_destination,
                               parse_release, version_tuple)
 
 
-def release_data(version="1.3.0", payload=b"installer"):
+def release_data(version="1.4.0", payload=b"installer"):
     name = f"PlayCore-{version}-Bazzite-x86_64.run"
     base = f"https://github.com/pettersdark/PlayCore/releases/download/v{version}/"
     digest = hashlib.sha256(payload).hexdigest()
@@ -30,10 +30,10 @@ class UpdaterTests(unittest.TestCase):
         self.assertGreater(version_tuple("v1.10.0"), version_tuple("1.9.0"))
         for version in ("1.0.0", "1.1.0"):
             self.assertIsNone(parse_release(release_data(version)))
-        self.assertEqual(parse_release(release_data()).version, "1.3.0")
+        self.assertEqual(parse_release(release_data()).version, "1.4.0")
         for flag in ("draft", "prerelease"):
             self.assertIsNone(parse_release(dict(release_data(), **{flag: True})))
-        for invalid in ("1.2", "1.3.0-beta", "../../1.3.0", None):
+        for invalid in ("1.2", "1.4.0-beta", "../../1.4.0", None):
             with self.assertRaises(ValueError):
                 version_tuple(invalid)
 

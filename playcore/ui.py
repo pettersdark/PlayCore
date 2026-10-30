@@ -2,10 +2,9 @@
 from PySide6.QtCore import QProcess, QThread, QTimer, QUrl, Signal, Qt
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
-    QApplication, QComboBox, QDialog, QFormLayout, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView, QLabel,
-    QListWidget, QListWidgetItem, QMainWindow, QPushButton, QScrollArea,
-    QSplitter, QStackedWidget, QTableWidget, QTableWidgetItem, QTextBrowser, QToolButton,
-    QVBoxLayout, QWidget, QProgressBar, QMessageBox,
+    QApplication, QFormLayout, QGridLayout, QHBoxLayout, QHeaderView,
+    QListWidget, QListWidgetItem, QMainWindow, QScrollArea,
+    QSplitter, QStackedWidget, QTableWidgetItem, QVBoxLayout, QWidget, QProgressBar,
 )
 
 from .catalog import CSS_DEPENDENCIES, MACHINE_READY_URL, PLUGINS, PROFILE_STEPS
@@ -16,6 +15,9 @@ from .launch_options import GUIDE as LAUNCH_OPTIONS_GUIDE, WARNING as LAUNCH_OPT
 from .steam_bridge import request_import
 from . import __version__
 from .updater import Updater, RELEASES_URL, installation_destination
+from .i18n import Localizer
+from .localized_widgets import (QComboBox, QDialog, QGroupBox, QLabel, QMessageBox,
+                                QPushButton, QStatusBar, QTableWidget, QTextBrowser, QToolButton)
 
 
 class UpdateWorker(QThread):
@@ -154,8 +156,11 @@ class MainWindow(QMainWindow):
         ("Actualizaciones", "system-software-update"),
     )
 
-    def __init__(self, scanner=None, auto_scan=True, installer=None):
+    def __init__(self, scanner=None, auto_scan=True, installer=None, settings=None):
         super().__init__()
+        self.localizer = Localizer(settings=settings, parent=self)
+        self.localizer.changed.connect(self._retranslate_ui)
+        self.setStatusBar(QStatusBar(self))
         self.scanner = scanner or Scanner()
         self.worker = None
         self.installer = installer or Installer()
@@ -192,13 +197,21 @@ class MainWindow(QMainWindow):
         title.setFont(font)
         header.addWidget(title)
         header.addStretch()
-        header.addWidget(QLabel(f"Versión {__version__} · Instalación bajo demanda"))
+        header.addWidget(QLabel(f"Versión {__version__}"))
         self.updates_shortcut = QPushButton("Buscar actualizaciones")
         self.updates_shortcut.clicked.connect(self.open_updates)
         header.addWidget(self.updates_shortcut)
         self.refresh_button = QPushButton(QIcon.fromTheme("view-refresh"), "Actualizar detección")
         self.refresh_button.clicked.connect(self.start_scan)
         header.addWidget(self.refresh_button)
+        self.language_combo = QComboBox()
+        self.language_combo.setAccessibleName("Idioma")
+        self.language_combo.setToolTip("Idioma")
+        self.language_combo.addItem("Español", "es")
+        self.language_combo.addItem("English", "en")
+        self.language_combo.setCurrentIndex(self.language_combo.findData(self.localizer.language))
+        self.language_combo.currentIndexChanged.connect(self.change_language)
+        header.addWidget(self.language_combo)
         layout.addLayout(header)
         layout.addWidget(paragraph("Tu equipo de juego, de un vistazo. Consulta el sistema, las aplicaciones y los complementos locales."))
         splitter = QSplitter()
@@ -233,9 +246,16 @@ class MainWindow(QMainWindow):
         self.navigation.currentRowChanged.connect(self.pages.setCurrentIndex)
         self.navigation.setCurrentRow(0)
         self.statusBar().showMessage("Listo para detectar")
+        self.localizer.apply(self)
         if auto_scan:
             self.start_scan()
             QTimer.singleShot(1500, self.check_updates)
+
+    def change_language(self):
+        self.localizer.set_language(self.language_combo.currentData())
+
+    def _retranslate_ui(self, _language):
+        self.localizer.apply(self)
 
     def build_section(self, name, layout):
         if name == "Actualizaciones":
@@ -408,6 +428,7 @@ class MainWindow(QMainWindow):
         self.available_release = None
         self.apply_update_button.setText("Descargar e instalar")
         self.updates_shortcut.setText("Buscar actualizaciones")
+        self.release_notes.setProperty("verbatim", False)
         self.release_notes.setPlainText("Consultando las novedades…")
         self.update_status.setText("Buscando versiones estables en GitHub…")
         self.update_worker = UpdateWorker(self.updater, parent=self)
@@ -419,6 +440,7 @@ class MainWindow(QMainWindow):
 
     def show_update_release(self, release):
         self.available_release = release
+        self.release_notes.setProperty("verbatim", release is not None)
         if release is None:
             self.update_status.setText(f"PlayCore está al día. Tienes la versión {__version__}.")
             self.release_notes.setPlainText("No hay una versión estable más reciente disponible.")
@@ -468,7 +490,7 @@ class MainWindow(QMainWindow):
     def read_update_output(self):
         text = bytes(self.update_process.readAllStandardOutput()).decode("utf-8", errors="replace")
         if text.strip():
-            self.update_log.setPlainText(self.update_log.toPlainText() + "\n" + text.rstrip())
+            self.update_log.setPlainText(self.update_log.sourcePlainText() + "\n" + text.rstrip())
 
     def update_process_error(self, error):
         if error == QProcess.ProcessError.FailedToStart:
@@ -538,6 +560,7 @@ class MainWindow(QMainWindow):
         guide.setPlainText(LAUNCH_OPTIONS_GUIDE)
         layout.addWidget(guide, 2)
         preview = QTextBrowser()
+        preview.setProperty("verbatim", True)
         preview.setAccessibleName("Script de importación para la consola de Steam")
         preview.setPlainText(script)
         layout.addWidget(preview, 1)
@@ -550,6 +573,7 @@ class MainWindow(QMainWindow):
         close = QPushButton("Cerrar")
         close.clicked.connect(dialog.accept)
         layout.addWidget(close)
+        self.localizer.apply(dialog)
         dialog.exec()
 
     def update_install_buttons(self):
@@ -594,7 +618,7 @@ class MainWindow(QMainWindow):
     def install_message(self, message):
         for log in self.install_logs:
             # setPlainText evita interpretar como HTML la salida externa.
-            log.setPlainText(log.toPlainText() + "\n" + message)
+            log.setPlainText(log.sourcePlainText() + "\n" + message)
             bar = log.verticalScrollBar()
             bar.setValue(bar.maximum())
         self.statusBar().showMessage(message.splitlines()[-1] if message else "")

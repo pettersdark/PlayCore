@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 GUI_SMOKE = r'''
-import importlib.util, sys, types
+import importlib.util, os, sys, types
 from pathlib import Path
 bundle, destination, result_file = map(Path, sys.argv[1:4])
 spec = importlib.util.spec_from_file_location('bootstrap', bundle/'installer_bootstrap.py')
@@ -16,18 +16,19 @@ spec.loader.exec_module(bootstrap)
 shim = types.ModuleType('installer_gui')
 def smoke(bundle, arguments):
     from PySide6.QtWidgets import QApplication
-    from PySide6.QtCore import QTimer
+    from PySide6.QtCore import QSettings, QTimer
     spec = importlib.util.spec_from_file_location('real_gui', bundle/'installer_gui.py')
     gui = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gui)
     app = QApplication([])
-    window = gui.InstallerWindow(bundle, destination, shortcuts=False)
+    preferences = QSettings(os.environ['PLAYCORE_SMOKE_SETTINGS'], QSettings.Format.IniFormat)
+    window = gui.InstallerWindow(bundle, destination, shortcuts=False, settings=preferences)
     assert not destination.exists(), 'Abrir el instalador no debe instalar nada'
     window.show()
     completed = []
     def finished(code, status):
         completed.append(code)
-        window.grab().save('/tmp/playcore-1.0-installer-success.png')
+        window.grab().save('/tmp/playcore-1.3-installer-success.png')
         window.close()
         app.quit()
     window.process.finished.connect(finished)
@@ -48,14 +49,15 @@ raise SystemExit(bootstrap.main())
 '''
 
 APP_SMOKE = r'''
-import sys
+import os, sys
 sys.path.insert(0, sys.argv[1])
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QSettings, QTimer
 from playcore.ui import MainWindow
 from playcore import __version__
 app = QApplication([])
-window = MainWindow(auto_scan=False)
+preferences = QSettings(os.environ['PLAYCORE_SMOKE_SETTINGS'], QSettings.Format.IniFormat)
+window = MainWindow(auto_scan=False, settings=preferences)
 window.start_scan()
 window.show()
 completed = []
@@ -67,9 +69,17 @@ def finish():
     assert window.navigation.count() == 7
     assert {f.name for f in window.snapshot.proton} == {'Proton-CachyOS', 'Proton-GE'}
     assert all(panel.log.isHidden() for panel in window.message_panels)
+    assert window.navigation.item(0).text() == 'Sistema'
+    table = window.tables['Proton']
+    window.language_combo.setCurrentIndex(window.language_combo.findData('en'))
+    assert window.navigation.item(0).text() == 'System'
+    assert window.tables['Proton'] is table
+    assert table.horizontalHeaderItem(1).text() == 'Local status'
+    window.install_message('Instalación de Proton-GE completada.')
+    assert 'Installation of Proton-GE completed.' in window.install_logs[0].toPlainText()
     window.navigation.setCurrentRow(2)
     app.processEvents()
-    window.grab().save('/tmp/playcore-1.0-installed-app.png')
+    window.grab().save('/tmp/playcore-1.3-installed-app-english.png')
     completed.append(True)
     window.close()
     app.quit()
@@ -81,7 +91,7 @@ print('Interfaz instalada PlayCore', __version__, ': OK')
 '''
 
 UPDATE_SMOKE = r'''
-import importlib.util, subprocess, sys, types
+import importlib.util, os, subprocess, sys, types
 from pathlib import Path
 from unittest.mock import patch
 bundle, destination = map(Path, sys.argv[1:3])
@@ -96,7 +106,7 @@ spec.loader.exec_module(bootstrap)
 shim = types.ModuleType('installer_gui')
 def smoke(bundle, arguments):
     from PySide6.QtWidgets import QApplication
-    from PySide6.QtCore import QTimer
+    from PySide6.QtCore import QSettings, QTimer
     spec = importlib.util.spec_from_file_location('update_gui', bundle/'installer_gui.py')
     gui = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(gui)
@@ -108,11 +118,15 @@ def smoke(bundle, arguments):
         reopened.append(program)
         return True, 123
     with patch.object(gui.QProcess, 'startDetached', side_effect=open_installed):
-        window = gui.InstallerWindow(bundle, destination, shortcuts=False, update=True)
+        preferences = QSettings(os.environ['PLAYCORE_SMOKE_SETTINGS'], QSettings.Format.IniFormat)
+        window = gui.InstallerWindow(bundle, destination, shortcuts=False, update=True, settings=preferences)
+        assert window.localizer.language == 'en'
+        assert window.install_button.text() == 'Update PlayCore'
         window.show()
         QTimer.singleShot(60000, app.quit)
         app.exec()
     assert window.update_completed, window.log.toPlainText()
+    assert 'installation completed' in window.status.text()
     assert len(reopened) == 1
     assert previous.read_text() == 'previous installation'
     assert settings.read_text() == '{"preserved": true}'
@@ -129,6 +143,7 @@ raise SystemExit(bootstrap.main())
 def main(bundle):
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
     with tempfile.TemporaryDirectory(prefix="playcore-smoke-") as temp:
+        env['PLAYCORE_SMOKE_SETTINGS'] = str(Path(temp) / 'preferences.ini')
         destination = Path(temp) / "instalación gráfica con espacios"
         result = Path(temp) / "installed-path.txt"
         # Python del sistema, sin usar las dependencias del entorno de desarrollo.

@@ -1,6 +1,6 @@
-PLAYCORE 1.2 — INSTALADOR GRÁFICO PARA BAZZITE / STEAMOS x86_64
+PLAYCORE 1.3 — INSTALADOR GRÁFICO PARA BAZZITE / STEAMOS x86_64
 
-1. Copia el fichero PlayCore-1.2.0-Bazzite-x86_64.run a la otra máquina.
+1. Copia el fichero PlayCore-1.3.0-Bazzite-x86_64.run a la otra máquina.
 2. Haz doble clic en él y elige Ejecutar si Dolphin lo pregunta.
 3. En la ventana del instalador pulsa Instalar PlayCore y, al terminar, Abrir PlayCore.
 
@@ -37,7 +37,9 @@ en app/playcore/ para poder inspeccionarlo. README.md contiene la documentación
 
 Desde Actualizaciones puedes consultar novedades e instalar futuras versiones
 estables de GitHub. Se comprueba la descarga y PlayCore vuelve a abrirse al terminar.
-Quienes tengan 1.0.0 o 1.1.0 necesitan instalar esta 1.2.0 manualmente una vez.
+Si tienes 1.2.0, puedes actualizar desde la app a la 1.3.0.
+Desde 1.0.0 o 1.1.0, instala esta versión manualmente una vez.
+Elige Español / English arriba a la derecha; el idioma se guarda y cambia al instante.
 
 El usuario probó satisfactoriamente el instalador anterior 1.0.
 Instrucciones en español e inglés: https://github.com/pettersdark/PlayCore
@@ -45,12 +47,12 @@ Descargas: https://github.com/pettersdark/PlayCore/releases
 
 ENGLISH
 
-Double-click PlayCore-1.2.0-Bazzite-x86_64.run and choose Execute if asked.
+Double-click PlayCore-1.3.0-Bazzite-x86_64.run and choose Execute if asked.
 If the download lost executable permission, right-click → Properties → Permissions
 → Is executable, then open it again. Click Instalar PlayCore (Install PlayCore),
 then Abrir PlayCore (Open PlayCore). A launcher is added to the application menu.
 No terminal or sudo is needed for the graphical installer. Qt dependencies are
-bundled, so installation works offline. The app interface is currently in Spanish.
+bundled, so installation works offline. Choose Español / English at the top right. The choice is saved and changes take effect immediately.
 
 Requires Linux x86_64, KDE Plasma, Python 3.11+ with venv and safe tarfile filters,
 glibc 2.34+ and about 1 GB free. Python is not bundled. This file is not for ARM
@@ -64,4 +66,5 @@ Machine Ready TV profile selection stays manual: enable Nav Patch, click Refresh
 then choose and apply your profile in CSS Loader.
 
 Use Actualizaciones to check and install future stable releases from GitHub.
-Users upgrading from 1.0.0 or 1.1.0 must install 1.2.0 manually once to enable in-app updates.
+Users on 1.2.0 can update from the app to 1.3.0.
+Users upgrading from 1.0.0 or 1.1.0 must install this version manually once.

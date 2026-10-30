@@ -1,4 +1,24 @@
-# PlayCore 1.2
+# PlayCore 1.3
+
+## Idioma (1.3.0)
+
+Selector Español / English en la esquina superior derecha de la aplicación y del
+instalador. El cambio se aplica a los widgets existentes, sin reconstruir la ventana,
+reiniciar ni volver a detectar el sistema. Se conservan el inventario, la sección,
+las selecciones, el historial de mensajes y los procesos en curso.
+
+La preferencia `ui/language` se guarda con QSettings en la configuración de usuario
+PlayCore/PlayCore (habitualmente `~/.config/PlayCore/PlayCore.conf`, respetando XDG).
+El idioma inicial es español; una preferencia desconocida vuelve a español. No se
+necesitan paquetes de traducción ni conexión a Internet.
+
+Los textos originales permanecen separados de su representación: no se traducen los
+identificadores usados por instaladores, rutas, nombres de componentes ni los scripts
+copiados. Las notas de GitHub y la salida de herramientas externas conservan su idioma.
+Los mensajes propios de PlayCore, incluidos errores y progreso, se muestran en el
+idioma elegido. El instalador comparte la preferencia incluso tras una actualización.
+
+![Selector e interfaz en inglés](images/v1.3/en/proton.png)
 
 ## Actualizador de PlayCore (1.2.0)
 
@@ -16,9 +36,10 @@ No modifica componentes, perfiles ni versiones anteriores. La instalación es po
 usuario y no necesita sudo. Se bloquean otras instalaciones y el cierre durante
 la descarga e instalación para evitar interrupciones.
 
-La 1.0.0 necesita una instalación manual de 1.2.0. Las copias del código fuente
+Desde 1.0.0 o 1.1.0 se necesita una instalación manual de 1.3.0.
+Desde 1.2.0 se puede actualizar con la aplicación. Las copias del código fuente
 permiten buscar actualizaciones pero desactivan la instalación desde la app.
-El paquete nuevo se prepara en `entrega/PlayCore-1.2.0-Bazzite-x86_64.run`.
+El paquete nuevo se prepara en `entrega/PlayCore-1.3.0-Bazzite-x86_64.run`.
 Para futuras releases, incrementa `playcore/__init__.py` y `pyproject.toml`, construye
 el paquete y publica la etiqueta correspondiente con el `.run` y `.run.sha256`.
 No reutilices el número de una versión publicada.
@@ -222,7 +243,7 @@ anterior fue probado por el usuario.
 
 ## Paquete para probar en otro equipo
 
-El fichero principal es `entrega/PlayCore-1.2.0-Bazzite-x86_64.run`. Cópialo a Bazzite
+El fichero principal es `entrega/PlayCore-1.3.0-Bazzite-x86_64.run`. Cópialo a Bazzite
 y ábrelo con doble clic: se abre un asistente con **Instalar PlayCore** y, al terminar,
 **Abrir PlayCore**. No hay que abrir una terminal ni escribir comandos. Si el navegador
 o el USB elimina el permiso de ejecución, actívalo gráficamente en **Propiedades →
@@ -256,7 +277,7 @@ en carpetas temporales, sin instalar componentes de juego ni cambiar contraseña
 ## Distribución en GitHub
 
 El repositorio de destino es [pettersdark/PlayCore](https://github.com/pettersdark/PlayCore).
-La descarga para el usuario final es el fichero `.run` de la [Release 1.2.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.2.0).
+La descarga para el usuario final es el fichero `.run` de la [Release 1.3.0](https://github.com/pettersdark/PlayCore/releases/tag/v1.3.0).
 Consulta [las instrucciones en ambos idiomas](../README.md) y [el procedimiento de publicación](PUBLICAR_GITHUB.md).
 
 ## Fuentes del catálogo

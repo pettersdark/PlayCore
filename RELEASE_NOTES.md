@@ -1,3 +1,33 @@
+# PlayCore 1.3.0 · Español / English
+
+## Español
+
+- Selector **Español / English** arriba a la derecha, con el estilo nativo de Qt.
+- Cambio inmediato, sin reiniciar ni perder la sección, inventario, selecciones o tareas en curso.
+- Traducción de secciones, botones, estados, mensajes, errores, ayudas y diálogos propios de PlayCore.
+- Preferencia guardada para las siguientes aperturas y compartida con el instalador gráfico.
+- Nombres de componentes, rutas, comandos y notas originales de GitHub preservados.
+
+Desde **1.2.0**, instala la 1.3.0 con **Actualizaciones**.
+Desde 1.0.0 o 1.1.0, descarga e instala manualmente `PlayCore-1.3.0-Bazzite-x86_64.run`.
+
+![Interfaz en español](https://raw.githubusercontent.com/pettersdark/PlayCore/v1.3.0/docs/images/v1.3/es/proton.png)
+
+## English
+
+- **Español / English** selector in the top-right corner, using the existing native Qt style.
+- Instant switching without restarting or losing the open section, inventory, selections, or running tasks.
+- Translated sections, buttons, status labels, messages, errors, instructions, and PlayCore dialogs.
+- Language preference saved for subsequent launches and shared with the graphical installer.
+- Component names, paths, commands, and original GitHub release notes preserved.
+
+On **1.2.0**, use **Actualizaciones / Updates** to install 1.3.0.
+On 1.0.0 or 1.1.0, download and install `PlayCore-1.3.0-Bazzite-x86_64.run` manually.
+
+![English interface](https://raw.githubusercontent.com/pettersdark/PlayCore/v1.3.0/docs/images/v1.3/en/proton.png)
+
+---
+
 # PlayCore 1.2.0 · Actualizador integrado / In-app updater
 
 ## Español

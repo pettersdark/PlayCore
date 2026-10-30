@@ -18,6 +18,9 @@ def show_error(message):
 
 
 def main():
+    # El instalador importa las traducciones del paquete verificado. No debe
+    # añadir __pycache__ al contenido que vuelve a comprobar instalar.py.
+    sys.dont_write_bytecode = True
     bundle = Path(sys.argv[1]).resolve()
     spec = importlib.util.spec_from_file_location("playcore_installer_core", bundle / "instalar.py")
     core = importlib.util.module_from_spec(spec)
@@ -37,6 +40,7 @@ def main():
                 archive.extractall(temp)
         sys.path.insert(0, temp)
         sys.path.insert(0, str(bundle))
+        sys.path.insert(0, str(bundle / "app"))
         from installer_gui import main as graphical_main
         return graphical_main(bundle, sys.argv[2:])
 

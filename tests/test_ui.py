@@ -5,7 +5,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, QSettings, QTimer
 from PySide6.QtWidgets import QApplication
 
 from playcore.detection import Scanner
@@ -24,7 +24,8 @@ class GuiTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
         self.scanner = Scanner(self.home, self.home, {}, which=lambda _: None)
-        self.window = MainWindow(self.scanner, auto_scan=False)
+        self.window = MainWindow(self.scanner, auto_scan=False,
+                                 settings=QSettings(str(self.home / "ui.ini"), QSettings.Format.IniFormat))
         self.addCleanup(self.window.close)
 
     def test_seven_sections_and_inventory(self):
@@ -58,10 +59,10 @@ class GuiTests(unittest.TestCase):
             QTimer.singleShot(5000, loop.quit)
             loop.exec()
             self.app.processEvents()
-            self.assertIn("1.3.0", self.window.update_status.text())
+            self.assertIn("1.4.0", self.window.update_status.text())
             self.assertTrue(self.window.apply_update_button.isEnabled())
             self.assertEqual(self.window.release_notes.toPlainText(), "Novedades de prueba")
-            self.assertIn("1.3.0", self.window.updates_shortcut.text())
+            self.assertIn("1.4.0", self.window.updates_shortcut.text())
 
     def test_update_download_error_preserves_current_app_and_allows_retry(self):
         from PySide6.QtWidgets import QMessageBox

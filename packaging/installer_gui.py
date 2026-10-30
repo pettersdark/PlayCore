@@ -8,9 +8,11 @@ from pathlib import Path
 from PySide6.QtCore import QProcess, QTimer, Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QApplication, QDialog, QHBoxLayout, QLabel, QMessageBox, QPlainTextEdit,
-    QProgressBar, QPushButton, QToolButton, QVBoxLayout,
+    QApplication, QHBoxLayout, QProgressBar, QVBoxLayout,
 )
+from playcore.i18n import Localizer
+from playcore.localized_widgets import (QComboBox, QDialog, QLabel, QMessageBox,
+                                       QPlainTextEdit, QPushButton, QToolButton)
 
 
 def load_core(bundle):
@@ -21,8 +23,10 @@ def load_core(bundle):
 
 
 class InstallerWindow(QDialog):
-    def __init__(self, bundle, destination=None, shortcuts=True, update=False):
+    def __init__(self, bundle, destination=None, shortcuts=True, update=False, settings=None):
         super().__init__()
+        self.localizer = Localizer(settings=settings, parent=self)
+        self.localizer.changed.connect(lambda _: self.localizer.apply(self))
         self.bundle = Path(bundle)
         self.destination = destination or Path.home() / ".local/share/playcore"
         self.shortcuts = shortcuts
@@ -46,7 +50,18 @@ class InstallerWindow(QDialog):
         font.setPointSize(font.pointSize() + 8)
         font.setBold(True)
         title.setFont(font)
-        layout.addWidget(title)
+        header = QHBoxLayout()
+        header.addWidget(title)
+        header.addStretch()
+        self.language_combo = QComboBox()
+        self.language_combo.setAccessibleName("Idioma")
+        self.language_combo.addItem("Español", "es")
+        self.language_combo.addItem("English", "en")
+        self.language_combo.setCurrentIndex(self.language_combo.findData(self.localizer.language))
+        self.language_combo.currentIndexChanged.connect(
+            lambda: self.localizer.set_language(self.language_combo.currentData()))
+        header.addWidget(self.language_combo)
+        layout.addLayout(header)
         for text in (
             "Instala PlayCore para SteamOS o Bazzite en tu cuenta de usuario.",
             "Incluye sus bibliotecas Qt. No necesita conexión ni permisos de administrador para instalar PlayCore.",
@@ -95,6 +110,7 @@ class InstallerWindow(QDialog):
         self.install_button.clicked.connect(self.start_install)
         buttons.addWidget(self.install_button)
         layout.addLayout(buttons)
+        self.localizer.apply(self)
         if update:
             QTimer.singleShot(0, self.start_install)
 
