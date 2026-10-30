@@ -46,4 +46,14 @@ Installing gaming components from the app requires Internet. The installer is of
 68 automated tests and an offline graphical installation/launch check passed.
 The full catalog is not guaranteed compatible with every Steam version or device.
 
+## Capturas / Screenshots
+
+Interfaz real con datos de demostración. / Actual interface with demonstration data.
+
+![Proton-CachyOS y Proton-GE en PlayCore 1.0](https://raw.githubusercontent.com/pettersdark/PlayCore/main/docs/images/v1.0/proton.png)
+
+![Instalador gráfico sin terminal / Graphical installer without a terminal](https://raw.githubusercontent.com/pettersdark/PlayCore/main/docs/images/v1.0/instalador.png)
+
+[Galería completa / Full screenshot gallery](https://github.com/pettersdark/PlayCore#screenshots)
+
 [Español / English instructions](https://github.com/pettersdark/PlayCore#readme)

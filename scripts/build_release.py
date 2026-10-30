@@ -44,6 +44,10 @@ def build(wheel_dir, output):
     (bundle / "docs").mkdir()
     for source in sorted((ROOT / "docs").glob("*.md")):
         shutil.copyfile(source, bundle / "docs" / source.name)
+    for source in sorted((ROOT / "docs/images").rglob("*.png")):
+        target = bundle / source.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
     (bundle / "instalar.sh").chmod(0o755)
     for filename in wanted:
         shutil.copyfile(wheel_dir / filename, bundle / "wheels" / filename)

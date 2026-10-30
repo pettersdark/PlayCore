@@ -6,6 +6,12 @@ Panel de escritorio en Python y PySide6 para **SteamOS y Bazzite con KDE Plasma*
 Detecta el sistema y los componentes instalados y permite instalar herramientas de juego
 desde una interfaz gráfica. La interfaz de la aplicación está en español.
 
+![PlayCore 1.0: Proton-CachyOS y Proton-GE / Proton-CachyOS and Proton-GE](docs/images/v1.0/proton.png)
+
+*Interfaz real con datos de demostración. / Real interface with demonstration data.*
+
+[Ver capturas / View screenshots](#screenshots) · [Descargar / Download](https://github.com/pettersdark/PlayCore/releases/tag/v1.0.0)
+
 ## Español
 
 ### Descargar e instalar, sin terminal
@@ -15,6 +21,10 @@ desde una interfaz gráfica. La interfaz de la aplicación está en español.
 3. Haz doble clic en el fichero. Si Dolphin lo pregunta, elige **Ejecutar**.
 4. Si el navegador ha quitado el permiso de ejecución: botón derecho → **Propiedades → Permisos → Es ejecutable**. Vuelve a abrirlo.
 5. Pulsa **Instalar PlayCore** y, al terminar, **Abrir PlayCore**. También aparecerá en el menú de aplicaciones.
+
+![Asistente gráfico de instalación de PlayCore 1.0](docs/images/v1.0/instalador.png)
+
+*Así se abre el instalador antes de pulsar Instalar PlayCore. La ruta mostrada es de demostración.*
 
 No uses sudo ni necesitas abrir una terminal. El instalador incluye sus dependencias
 Qt y funciona sin conexión; instalar componentes desde la aplicación sí requiere Internet.
@@ -87,6 +97,10 @@ The application UI is currently in Spanish; installation and usage instructions 
 4. If the download lost its executable permission: right-click → **Properties → Permissions → Is executable**, then open it again.
 5. Click **Instalar PlayCore** (Install PlayCore), then **Abrir PlayCore** (Open PlayCore). A launcher is also added to your application menu.
 
+![PlayCore 1.0 graphical installation wizard](docs/images/v1.0/instalador.png)
+
+*The installer before clicking Install PlayCore. The displayed destination uses demonstration data.*
+
 Do not use sudo. You do not need to open a terminal. Qt dependencies are bundled,
 so installing PlayCore works offline; installing gaming components from the app requires Internet.
 Your desktop may ask you to trust or allow the downloaded executable.
@@ -143,6 +157,37 @@ and include the error, distribution and affected section in an
 “Detected” means present, not guaranteed compatible with your Steam version.
 The user has tested the installer; every catalog component has not been validated on every device.
 
+<a id="screenshots"></a>
+
+## Capturas / Screenshots
+
+Capturas de los widgets reales de PlayCore 1.0 con datos de demostración, sin datos
+personales ni instalaciones reales. El aspecto puede variar según la integración Qt de KDE.
+
+Screenshots of the actual PlayCore 1.0 widgets using demonstration data, without personal
+information or live installations. Appearance may vary with your KDE/Qt integration.
+
+<details>
+<summary>Ver todas las secciones / View all sections</summary>
+
+| Sistema / System | Aplicaciones / Applications |
+| --- | --- |
+| [![Información del sistema y contraseña / System and account information](docs/images/v1.0/sistema.png)](docs/images/v1.0/sistema.png) | [![Heroic y ProtonPlus / Heroic and ProtonPlus](docs/images/v1.0/aplicaciones.png)](docs/images/v1.0/aplicaciones.png) |
+
+| Proton | Decky |
+| --- | --- |
+| [![Proton-CachyOS y Proton-GE](docs/images/v1.0/proton.png)](docs/images/v1.0/proton.png) | [![Decky Loader y sus cuatro plugins / Decky Loader and four plugins](docs/images/v1.0/decky.png)](docs/images/v1.0/decky.png) |
+
+| Temas / Themes | Mantenimiento / Maintenance |
+| --- | --- |
+| [![Machine Ready TV y selección manual del perfil / Machine Ready TV and manual profile selection](docs/images/v1.0/temas.png)](docs/images/v1.0/temas.png) | [![Espacio libre y diagnóstico / Free space and diagnostics](docs/images/v1.0/mantenimiento.png)](docs/images/v1.0/mantenimiento.png) |
+
+**Mensajes desplegables / Collapsible messages**
+
+![Ejemplo de instalación completada con el registro abierto / Installation-completed example with expanded log](docs/images/v1.0/mensajes.png)
+
+</details>
+
 ## Development / Desarrollo
 
 ```bash
@@ -160,3 +205,9 @@ Tests use temporary folders and mock privileged actions; they do not install gam
 
 [Documentación técnica en español](docs/README.es.md) · [Release notes / Notas](RELEASE_NOTES.md) ·
 [Third-party components / Componentes de terceros](THIRD_PARTY.md)
+
+Para regenerar las capturas con datos de demostración / To regenerate screenshots with demonstration data:
+
+```bash
+QT_QPA_PLATFORM=offscreen .venv/bin/python scripts/capture_screenshots.py
+```

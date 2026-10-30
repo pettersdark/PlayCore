@@ -1,5 +1,10 @@
 # PlayCore 1.0
 
+![PlayCore: sistema y estado de la cuenta, con datos de demostración](images/v1.0/sistema.png)
+
+[Ver todas las capturas](../README.md#screenshots). Son capturas de la interfaz real
+con datos de demostración; no muestran información personal ni instalaciones reales.
+
 Panel de escritorio en Python y PySide6 para SteamOS y Bazzite, con inventario local,
 instalación explícita y acceso al cambio de contraseña del usuario.
 No se instala nada al abrir la aplicación.
